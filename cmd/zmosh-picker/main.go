@@ -19,13 +19,10 @@ func main() {
 		return
 	}
 
-	// Start async update check for non-interactive commands
-	// Skip for: version, upgrade, help, and the default picker
+	// Start async update check for human-invoked non-interactive commands.
+	// Skip machine calls (`--json`) to keep app integrations fast.
 	var updateCh <-chan update.CheckResult
-	switch os.Args[1] {
-	case "version", "upgrade", "--help", "-h", "help":
-		// don't check
-	default:
+	if shouldCheckUpdates(os.Args[1:]) {
 		updateCh = update.CheckAsync(version)
 	}
 
@@ -89,6 +86,22 @@ func main() {
 			// Don't wait if check hasn't finished
 		}
 	}
+}
+
+func shouldCheckUpdates(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	switch args[0] {
+	case "version", "upgrade", "--help", "-h", "help":
+		return false
+	}
+	for _, arg := range args[1:] {
+		if arg == "--json" {
+			return false
+		}
+	}
+	return true
 }
 
 func printUsage() {
