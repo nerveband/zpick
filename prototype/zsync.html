@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>zsync</title>
+<style>
+:root{--bg:#000;--bg-card:#1c1c1e;--bg-card-hover:#2c2c2e;--bg-input:#2c2c2e;--text:#fff;--text-secondary:#8e8e93;--text-tertiary:#636366;--accent:#0a84ff;--green:#30d158;--red:#ff453a;--yellow:#ffd60a;--orange:#ff9f0a;--separator:rgba(255,255,255,0.08);--safe-top:env(safe-area-inset-top,20px);--safe-bottom:env(safe-area-inset-bottom,0px);--mono:'JetBrains Mono','SF Mono','Menlo',monospace}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+body{font-family:-apple-system,'SF Pro Display','SF Pro Text',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;overflow:hidden;position:fixed;width:100%}
+.screen{display:none;flex-direction:column;height:100dvh;width:100%;position:absolute;top:0;left:0}.screen.active{display:flex}
+.navbar{padding:calc(var(--safe-top)+8px) 16px 12px;background:rgba(0,0,0,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:.5px solid var(--separator);flex-shrink:0;z-index:10}
+.navbar-title{font-size:34px;font-weight:700;letter-spacing:-.5px}.navbar-subtitle{font-size:13px;color:var(--text-secondary);margin-top:2px}
+.navbar-compact{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px}
+.navbar-back{display:flex;align-items:center;gap:4px;color:var(--accent);font-size:17px;cursor:pointer;padding:8px 0;position:absolute;left:0}
+.navbar-back svg{width:12px;height:20px}
+.navbar-inline-title{font-size:17px;font-weight:600}.navbar-action{color:var(--accent);font-size:17px;cursor:pointer;padding:8px 0;position:absolute;right:0}
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--safe-bottom)+16px)}
+.section-header{font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;padding:24px 16px 8px}
+.section-header:first-child{padding-top:16px}
+.card-list{margin:0 16px;background:var(--bg-card);border-radius:12px;overflow:hidden}
+.card-item{display:flex;align-items:center;padding:12px 16px;cursor:pointer;transition:background .15s}
+.card-item:active{background:var(--bg-card-hover)}
+.card-item+.card-item{border-top:.5px solid var(--separator)}
+.ci-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-right:12px;flex-shrink:0}
+.ci-icon svg{width:20px;height:20px}
+.ci-info{flex:1;min-width:0}.ci-name{font-size:17px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-detail{font-size:14px;color:var(--text-secondary);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-right{display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0}
+.health-dot{width:8px;height:8px;border-radius:50%}.health-online{background:var(--green)}.health-offline{background:var(--red)}
+.chevron-icon{color:var(--text-tertiary)}.chevron-icon svg{width:8px;height:14px}
+.status-dot{width:8px;height:8px;border-radius:50%}.dot-active{background:var(--green)}.dot-idle{background:var(--text-tertiary)}
+.sl-active{font-size:12px;font-weight:500;color:var(--green)}.sl-idle{font-size:12px;font-weight:500;color:var(--text-tertiary)}
+/* Sessions — no number keys, just tappable rows */
+.session-wrapper{position:relative;overflow:hidden}
+.session-item{display:flex;align-items:center;padding:14px 16px;cursor:pointer;transition:background .15s,transform .25s;position:relative;z-index:1;background:var(--bg-card)}
+.session-item:active{background:var(--bg-card-hover)}
+.session-wrapper+.session-wrapper .session-item{border-top:.5px solid var(--separator)}
+.session-kill-bg{position:absolute;right:0;top:0;bottom:0;width:80px;background:var(--red);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:600}
+.session-icon{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;margin-right:12px;flex-shrink:0}
+.session-icon svg{width:16px;height:16px;color:var(--text-secondary)}
+.session-info{flex:1;min-width:0}.session-name{font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.session-path{font-size:13px;color:var(--text-secondary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono)}
+/* Terminal */
+.terminal-area{flex:1;background:#000;padding:8px 12px;font-family:var(--mono);font-size:13px;line-height:1.5;color:#e0e0e0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.terminal-area .prompt{color:var(--green)}.terminal-area .cmd{color:#fff}.terminal-area .output{color:#b0b0b0}
+.terminal-area .cursor{display:inline-block;width:8px;height:16px;background:rgba(255,255,255,.7);animation:blink 1s step-end infinite;vertical-align:middle}
+@keyframes blink{50%{opacity:0}}
+/* Theme preview */
+.theme-preview{margin:8px 16px 16px;border-radius:12px;overflow:hidden;border:1px solid var(--separator)}
+.theme-preview-bar{padding:6px 12px;font-size:11px;display:flex;justify-content:space-between}
+.theme-preview-body{padding:10px 12px;font-size:12px;line-height:1.6;min-height:100px}
+/* Composition bar */
+.composition-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#1a1a1c;border-top:.5px solid var(--separator)}
+.composition-input{flex:1;background:var(--bg-input);border:none;border-radius:20px;padding:10px 16px;color:var(--text);font-size:16px;font-family:var(--mono);outline:none}
+.composition-input::placeholder{color:var(--text-tertiary);font-family:-apple-system,system-ui,sans-serif}
+.comp-btn{width:36px;height:36px;border-radius:50%;background:var(--bg-input);border:none;color:var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,transform .1s}
+.comp-btn:active{transform:scale(.92)}.comp-btn.recording{background:var(--red);color:#fff;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,69,58,.4)}50%{transform:scale(1.05);box-shadow:0 0 0 8px rgba(255,69,58,0)}}
+.comp-btn.send{background:var(--accent);color:#fff}.comp-btn.send.disabled{background:var(--bg-input);color:var(--text-tertiary)}
+/* Drawers */
+.drawer{background:#1a1a1c;border-top:.5px solid var(--separator);max-height:0;overflow:hidden;transition:max-height .3s ease}.drawer.open{max-height:220px}
+.drawer-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px 4px}
+.drawer-title{font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px}
+.drawer-close{color:var(--text-tertiary);cursor:pointer;padding:4px 8px}.drawer-close svg{width:16px;height:16px}
+.snippet-list{display:flex;gap:8px;padding:4px 12px 10px;overflow-x:auto;scrollbar-width:none}.snippet-list::-webkit-scrollbar{display:none}
+.snippet-chip{flex-shrink:0;padding:8px 14px;border-radius:8px;background:var(--bg-card);border:none;color:var(--text);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--mono);transition:background .15s;white-space:nowrap}
+.snippet-chip:active{background:var(--bg-card-hover)}
+.history-list{padding:0 12px 10px;overflow-y:auto;max-height:170px}
+.history-item{padding:10px 12px;border-radius:8px;cursor:pointer;font-family:var(--mono);font-size:14px;color:var(--text-secondary);transition:background .15s}
+.history-item:active{background:var(--bg-card-hover)}.history-item+.history-item{border-top:.5px solid var(--separator)}
+.history-time{font-size:11px;color:var(--text-tertiary);margin-top:2px;font-family:-apple-system,system-ui,sans-serif}
+/* Key bar */
+.key-bar{display:flex;align-items:center;gap:6px;padding:6px 8px;background:#1a1a1c;border-top:.5px solid var(--separator);overflow-x:auto;scrollbar-width:none;padding-bottom:calc(6px + var(--safe-bottom))}
+.key-bar::-webkit-scrollbar{display:none}
+.key-btn{flex-shrink:0;padding:8px 12px;border-radius:6px;background:#3a3a3c;border:none;color:var(--text);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--mono);transition:background .1s,transform .05s;min-width:40px;text-align:center}
+.key-btn:active{background:#5a5a5c;transform:scale(.95)}
+.key-btn.modifier{background:#2a2a2c;color:var(--text-secondary)}.key-btn.modifier.active{background:var(--accent);color:#fff}
+.key-btn.arrow{font-size:16px;padding:8px 10px}
+.key-btn.tool-btn{background:#2a2a2c;display:flex;align-items:center;justify-content:center;padding:8px 10px}.key-btn.tool-btn svg{width:16px;height:16px}
+.key-btn.tool-btn.active{background:var(--accent);color:#fff}
+.key-divider{width:1px;height:24px;background:var(--separator);flex-shrink:0}
+/* Sheet */
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:none;align-items:flex-end;justify-content:center}
+.sheet-overlay.show{display:flex}
+.sheet{width:100%;max-width:400px;background:var(--bg-card);border-radius:14px 14px 0 0;padding:20px 16px calc(20px + var(--safe-bottom))}
+.sheet-title{font-size:17px;font-weight:600;text-align:center;margin-bottom:4px}
+.sheet-desc{font-size:14px;color:var(--text-secondary);text-align:center;margin-bottom:16px}
+.sheet-btn{width:100%;padding:14px;border-radius:12px;border:none;font-size:17px;font-weight:600;cursor:pointer;margin-bottom:8px;transition:transform .1s}
+.sheet-btn:active{transform:scale(.98)}.sheet-btn.danger{background:var(--red);color:#fff}.sheet-btn.cancel{background:var(--bg-input);color:var(--accent)}
+/* Toast */
+.toast{position:fixed;top:calc(var(--safe-top)+60px);left:50%;transform:translateX(-50%) translateY(-20px);background:var(--bg-card);border-radius:14px;padding:12px 20px;font-size:15px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,.6);z-index:400;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;max-width:90%;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.connecting-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:200}
+.connecting-overlay.show{display:flex}
+.connecting-spinner{width:40px;height:40px;border:3px solid var(--text-tertiary);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.connecting-text{font-size:17px;font-weight:500}.connecting-sub{font-size:14px;color:var(--text-secondary)}
+.tab-bar{display:flex;align-items:center;justify-content:space-around;padding:8px 0 calc(8px + var(--safe-bottom));background:rgba(0,0,0,.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:.5px solid var(--separator);flex-shrink:0}
+.tab-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 20px;color:var(--text-tertiary)}
+.tab-item svg{width:24px;height:24px}.tab-item .tab-label{font-size:10px;font-weight:500}.tab-item.active{color:var(--accent)}
+/* Form */
+.form-section{padding:0 16px;margin-bottom:16px}
+.form-label{font-size:13px;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.form-input{width:100%;background:var(--bg-card);border:none;border-radius:10px;padding:12px 16px;color:var(--text);font-size:17px;font-family:-apple-system,system-ui,sans-serif;outline:none}
+.form-input::placeholder{color:var(--text-tertiary)}
+.form-input.mono{font-family:var(--mono);font-size:15px}
+.form-row{display:flex;gap:12px}.form-row .form-section{flex:1}
+/* Name field with X clear */
+.name-field{position:relative}.name-field input{width:100%;background:var(--bg-card);border:none;border-radius:10px;padding:14px 44px 14px 16px;color:var(--text);font-size:18px;font-family:var(--mono);font-weight:600;outline:none}
+.name-field input::placeholder{color:var(--text-tertiary);font-weight:400;font-family:-apple-system,system-ui,sans-serif}
+.name-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:var(--text-tertiary);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.name-clear svg{width:14px;height:14px}
+/* Dir row */
+.dir-row{display:flex;align-items:center;padding:12px 16px;background:var(--bg-card);border-radius:10px;margin:0 16px 12px;cursor:pointer;transition:background .15s;gap:10px}
+.dir-row:active{background:var(--bg-card-hover)}
+.dir-row svg{width:18px;height:18px;color:var(--text-secondary);flex-shrink:0}
+.dir-row-info{flex:1;min-width:0}.dir-row-label{font-size:13px;color:var(--text-secondary)}.dir-row-path{font-size:15px;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Search */
+.search-bar{margin:0 16px 12px;position:relative}
+.search-bar input{width:100%;background:var(--bg-card);border:none;border-radius:10px;padding:10px 10px 10px 36px;color:var(--text);font-size:16px;outline:none;font-family:var(--mono)}
+.search-bar input::placeholder{color:var(--text-tertiary);font-family:-apple-system,system-ui,sans-serif}
+.search-bar>svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--text-tertiary)}
+.dir-list{margin:0 16px;background:var(--bg-card);border-radius:12px;overflow:hidden;max-height:55dvh;overflow-y:auto}
+.dir-item{display:flex;align-items:center;padding:12px 16px;cursor:pointer;transition:background .15s;gap:10px}
+.dir-item:active{background:var(--bg-card-hover)}
+.dir-item+.dir-item{border-top:.5px solid var(--separator)}
+.dir-item svg{width:18px;height:18px;color:var(--text-tertiary);flex-shrink:0}
+.dir-name{font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dir-path{font-size:13px;color:var(--text-secondary);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Settings */
+.settings-row{display:flex;align-items:center;padding:12px 16px}
+.settings-row+.settings-row{border-top:.5px solid var(--separator)}
+.settings-row .settings-label{flex:1;font-size:17px}.settings-row .settings-value{font-size:17px;color:var(--text-secondary)}
+/* Theme list */
+.theme-list{margin:0 16px}.theme-item{display:flex;align-items:center;padding:10px 12px;cursor:pointer;border-radius:12px;margin-bottom:8px;transition:background .15s;border:2px solid transparent}
+.theme-item:active{background:var(--bg-card-hover)}.theme-item.selected{border-color:var(--accent)}
+.theme-swatch{width:44px;height:32px;border-radius:6px;margin-right:12px;flex-shrink:0;display:flex;overflow:hidden}.theme-swatch span{flex:1}
+.theme-name{font-size:15px;font-weight:500;flex:1}.theme-check{color:var(--accent);display:none}.theme-item.selected .theme-check{display:block}
+.theme-check svg{width:20px;height:20px}
+/* Font list */
+.font-item{display:flex;align-items:center;padding:12px 16px;cursor:pointer;transition:background .15s}
+.font-item:active{background:var(--bg-card-hover)}.font-item+.font-item{border-top:.5px solid var(--separator)}
+.font-sample{font-size:16px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.font-check{color:var(--accent);display:none}.font-item.selected .font-check{display:block}
+.font-check svg{width:20px;height:20px}
+/* Icon picker grid */
+.icon-picker{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:0 16px;margin-bottom:16px}
+.icon-pick{width:100%;aspect-ratio:1;border-radius:12px;background:var(--bg-card);border:2px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .2s}
+.icon-pick:active{background:var(--bg-card-hover)}.icon-pick.selected{border-color:var(--accent)}
+.icon-pick svg{width:24px;height:24px}
+/* Key card */
+.key-card{margin:0 16px;background:var(--bg-card);border-radius:12px;padding:16px}
+.key-card-title{font-size:15px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.key-fingerprint{font-family:var(--mono);font-size:12px;color:var(--text-secondary);background:rgba(255,255,255,.05);border-radius:8px;padding:10px 12px;word-break:break-all;line-height:1.6;margin-bottom:12px}
+.key-actions{display:flex;gap:8px}
+.key-action-btn{flex:1;padding:10px;border-radius:8px;background:var(--bg-input);border:none;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;text-align:center}
+.key-action-btn:active{background:var(--bg-card-hover)}.key-action-btn.primary{background:var(--accent);color:#fff}
+.swipe-hint{font-size:12px;color:var(--text-tertiary);text-align:center;padding:8px}
+/* Icon color map */
+.ic-blue{color:#64b5f6}.ic-purple{color:#ce93d8}.ic-green{color:#81c784}.ic-orange{color:#ffb74d}.ic-pink{color:#f48fb1}
+.ic-teal{color:#4dd0e1}.ic-red{color:#ef9a9a}.ic-yellow{color:#fff176}.ic-gray{color:var(--text-secondary)}
+/* Setup Required */
+.setup-hero{display:flex;flex-direction:column;align-items:center;padding:48px 24px 24px;text-align:center}
+.setup-icon{width:72px;height:72px;border-radius:20px;background:rgba(255,69,58,.12);display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+.setup-icon svg{width:36px;height:36px;color:var(--red)}
+.setup-title{font-size:22px;font-weight:700;margin-bottom:8px}
+.setup-desc{font-size:15px;color:var(--text-secondary);line-height:1.5;max-width:320px}
+.setup-steps{margin:0 16px;background:var(--bg-card);border-radius:12px;overflow:hidden}
+.setup-step{display:flex;align-items:flex-start;padding:14px 16px;gap:12px}
+.setup-step+.setup-step{border-top:.5px solid var(--separator)}
+.setup-step-num{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.setup-step-text{font-size:15px;line-height:1.5;flex:1}
+.setup-step-text code{font-family:var(--mono);font-size:13px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.setup-btn-group{padding:16px;display:flex;flex-direction:column;gap:10px}
+.setup-btn{width:100%;padding:15px;border-radius:12px;border:none;font-size:17px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s}
+.setup-btn:active{transform:scale(.98)}
+.setup-btn.primary{background:var(--accent);color:#fff}
+.setup-btn.secondary{background:var(--bg-card);color:var(--accent)}
+.setup-btn svg{width:18px;height:18px}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<div class="connecting-overlay" id="connectOverlay"><div class="connecting-spinner"></div><div class="connecting-text" id="connectText">Connecting...</div><div class="connecting-sub" id="connectSub"></div></div>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-chevron" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-back" viewBox="0 0 12 20"><polyline points="10 2 2 10 10 18" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v8H4V6z" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M2 18h20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="3" y="14" width="18" height="6" rx="1.5" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="17" r="1" fill="currentColor"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M6.5 19a4.5 4.5 0 01-.42-8.98A7 7 0 0119.56 12 4.002 4.002 0 0118 20H6.5z" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/><polyline points="7 8 10 11 7 14" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="13" y1="14" x2="17" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.78 7.78 5.5 5.5 0 017.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v7a3 3 0 006 0V4a3 3 0 00-3-3z" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M19 10v1a7 7 0 01-14 0v-1" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><polygon points="22 2 15 22 11 13 2 9 22 2" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" fill="none"/><polyline points="12 6 12 12 16 14" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" stroke="currentColor" stroke-width="1.5" fill="none"/><polyline points="16 6 12 2 8 6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><line x1="12" y1="2" x2="12" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="9" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="9" y1="1" x2="9" y2="4" stroke="currentColor" stroke-width="1.5"/><line x1="15" y1="1" x2="15" y2="4" stroke="currentColor" stroke-width="1.5"/><line x1="9" y1="20" x2="9" y2="23" stroke="currentColor" stroke-width="1.5"/><line x1="15" y1="20" x2="15" y2="23" stroke="currentColor" stroke-width="1.5"/><line x1="20" y1="9" x2="23" y2="9" stroke="currentColor" stroke-width="1.5"/><line x1="20" y1="15" x2="23" y2="15" stroke="currentColor" stroke-width="1.5"/><line x1="1" y1="9" x2="4" y2="9" stroke="currentColor" stroke-width="1.5"/><line x1="1" y1="15" x2="4" y2="15" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0114.08 0" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M1.42 9a16 16 0 0121.16 0" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M8.53 16.11a6 6 0 016.95 0" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="12" cy="20" r="1" fill="currentColor"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1.5"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="1.5" fill="none"/><polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="currentColor"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" stroke="currentColor" stroke-width="1.5" fill="none"/><polyline points="15 3 21 3 21 9" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="10" y1="14" x2="21" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" stroke="currentColor" stroke-width="1.5" fill="none"/><polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+</svg>
+
+<!-- Kill sheet --><div class="sheet-overlay" id="killSheet"><div class="sheet"><div class="sheet-title" id="killSheetTitle">Kill session?</div><div class="sheet-desc" id="killSheetDesc"></div><button class="sheet-btn danger" onclick="confirmKill()">Kill Session</button><button class="sheet-btn cancel" onclick="closeSheet('killSheet')">Cancel</button></div></div>
+
+<!-- ========== HOME ========== -->
+<div class="screen active" id="screen-machines">
+  <div class="navbar"><div class="navbar-title">zsync</div><div class="navbar-subtitle">zmosh sessions across your machines</div></div>
+  <div class="content"><div class="section-header">Quick Jump</div><div class="card-list" id="quickJumpList"></div><div class="section-header">Machines</div><div class="card-list" id="machinesList"></div>
+    <div style="padding:16px"><button class="action-btn" onclick="showScreen('addmachine');initAddMachine()" style="width:100%;flex-direction:row;gap:8px;justify-content:center"><svg style="width:18px;height:18px"><use href="#i-plus"/></svg>Add Machine</button></div>
+  </div><div class="tab-bar" id="mainTabs"></div>
+</div>
+
+<!-- ========== SESSIONS ========== -->
+<div class="screen" id="screen-sessions">
+  <div class="navbar" style="padding-bottom:8px"><div class="navbar-compact"><div class="navbar-back" onclick="goBack('machines')"><svg><use href="#i-back"/></svg>Back</div><div class="navbar-inline-title" id="sessionMachineName"></div><div class="navbar-action" onclick="showToast('Machine settings')">Edit</div></div></div>
+  <div class="content" id="sessionsContent"></div>
+</div>
+
+<!-- ========== SETUP REQUIRED ========== -->
+<div class="screen" id="screen-setup">
+  <div class="navbar" style="padding-bottom:8px"><div class="navbar-compact"><div class="navbar-back" onclick="goBack('machines')"><svg><use href="#i-back"/></svg>Back</div><div class="navbar-inline-title" id="setupMachineName"></div></div></div>
+  <div class="content">
+    <div class="setup-hero">
+      <div class="setup-icon"><svg><use href="#i-alert"/></svg></div>
+      <div class="setup-title">Setup Required</div>
+      <div class="setup-desc"><span style="font-family:var(--mono);color:var(--text)">zmosh</span> is not installed on this machine. zsync requires zmosh to manage persistent terminal sessions.</div>
+    </div>
+    <div class="section-header">How to install</div>
+    <div class="setup-steps">
+      <div class="setup-step"><div class="setup-step-num">1</div><div class="setup-step-text">SSH into <strong id="setupHostName">your machine</strong> from another terminal</div></div>
+      <div class="setup-step"><div class="setup-step-num">2</div><div class="setup-step-text">Run the install command from the README:<br><code>brew install zmosh</code><br>or clone and install manually</div></div>
+      <div class="setup-step"><div class="setup-step-num">3</div><div class="setup-step-text">Verify it works by running <code>zmosh list</code></div></div>
+      <div class="setup-step"><div class="setup-step-num">4</div><div class="setup-step-text">Come back here and tap <strong>Check Again</strong></div></div>
+    </div>
+    <div class="setup-btn-group">
+      <button class="setup-btn primary" onclick="openSetupGuide()"><svg><use href="#i-external"/></svg>View Install Guide on GitHub</button>
+      <button class="setup-btn secondary" onclick="recheckSetup()"><svg><use href="#i-refresh"/></svg>Check Again</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== NEW SESSION ========== -->
+<div class="screen" id="screen-newsession">
+  <div class="navbar" style="padding-bottom:8px"><div class="navbar-compact"><div class="navbar-back" onclick="goBack('sessions')"><svg><use href="#i-back"/></svg>Cancel</div><div class="navbar-inline-title">New Session</div><div class="navbar-action" id="createSessionBtn" onclick="createSession()">Create</div></div></div>
+  <div class="content">
+    <div class="section-header">Session Name</div>
+    <div style="padding:0 16px;margin-bottom:4px"><div class="name-field"><input id="nsName" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"><button class="name-clear" onclick="clearSessionName()"><svg><use href="#i-x"/></svg></button></div></div>
+    <div style="padding:4px 16px 0;font-size:13px;color:var(--text-tertiary)" id="nsNameHint">Auto-generated. Tap x to type your own.</div>
+
+    <div class="section-header">Directory</div>
+    <div class="dir-row" id="nsDirRow" onclick="showScreen('pickdir')">
+      <svg><use href="#i-folder"/></svg>
+      <div class="dir-row-info"><div class="dir-row-label">Working directory</div><div class="dir-row-path" id="nsDirPath">~/Documents/GitHub/zmosh-picker</div></div>
+      <span class="chevron-icon"><svg><use href="#i-chevron"/></svg></span>
+    </div>
+  </div>
+</div>
+
+<!-- ========== PICK DIR ========== -->
+<div class="screen" id="screen-pickdir">
+  <div class="navbar" style="padding-bottom:8px"><div class="navbar-compact"><div class="navbar-back" onclick="goBack('newsession')"><svg><use href="#i-back"/></svg>Back</div><div class="navbar-inline-title">Pick Directory</div></div></div>
+  <div class="content"><div style="padding:12px 0 0"><div class="search-bar"><svg><use href="#i-search"/></svg><input id="dirSearch" placeholder="Search directories..." oninput="filterDirs()" autocapitalize="none" autocorrect="off"></div></div>
+    <div class="section-header">Frequent (zoxide)</div><div class="dir-list" id="dirList"></div></div>
+</div>
+
+<!-- ========== TERMINAL ========== -->
+<div class="screen" id="screen-terminal">
+  <div class="navbar" style="padding-top:var(--safe-top);padding-bottom:6px"><div class="navbar-compact"><div class="navbar-back" onclick="detachSession()"><svg><use href="#i-back"/></svg>Back</div><div class="navbar-inline-title" id="termTitle">session</div><div class="navbar-action" id="termBadge" style="font-size:13px;color:var(--text-secondary);pointer-events:none">machine</div></div></div>
+  <div class="terminal-area" id="termArea"><div><span class="prompt">$</span> <span class="cursor"></span></div></div>
+  <div class="drawer" id="snippetDrawer"><div class="drawer-header"><span class="drawer-title">Snippets</span><span class="drawer-close" onclick="toggleDrawer('snippets')"><svg><use href="#i-x"/></svg></span></div><div class="snippet-list"><button class="snippet-chip" onclick="useSnippet('git status')">git status</button><button class="snippet-chip" onclick="useSnippet('git pull')">git pull</button><button class="snippet-chip" onclick="useSnippet('git push')">git push</button><button class="snippet-chip" onclick="useSnippet('ls -la')">ls -la</button><button class="snippet-chip" onclick="useSnippet('npm run dev')">npm run dev</button><button class="snippet-chip" onclick="useSnippet('docker ps')">docker ps</button><button class="snippet-chip" onclick="useSnippet('htop')">htop</button></div></div>
+  <div class="drawer" id="historyDrawer"><div class="drawer-header"><span class="drawer-title">Recent Commands</span><span class="drawer-close" onclick="toggleDrawer('history')"><svg><use href="#i-x"/></svg></span></div><div class="history-list" id="historyList"></div></div>
+  <div class="composition-bar"><input type="text" class="composition-input" id="compInput" placeholder="Type or speak a command..." autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"><button class="comp-btn" id="micBtn" onclick="toggleMic()"><svg style="width:18px;height:18px"><use href="#i-mic"/></svg></button><button class="comp-btn send disabled" id="sendBtn" onclick="sendCommand()"><svg style="width:16px;height:16px"><use href="#i-send"/></svg></button></div>
+  <div class="key-bar">
+    <button class="key-btn tool-btn" id="snippetsToggle" onclick="toggleDrawer('snippets')" style="color:var(--orange)"><svg><use href="#i-star"/></svg></button>
+    <button class="key-btn tool-btn" id="historyToggle" onclick="toggleDrawer('history')" style="color:var(--accent)"><svg><use href="#i-clock"/></svg></button>
+    <div class="key-divider"></div>
+    <button class="key-btn modifier" onclick="pressKey('esc')">esc</button>
+    <button class="key-btn modifier" id="keyCtrl" onclick="toggleMod('ctrl')">ctrl</button>
+    <button class="key-btn modifier" onclick="pressKey('tab')">tab</button>
+    <button class="key-btn modifier" id="keyAlt" onclick="toggleMod('alt')">alt</button>
+    <div class="key-divider"></div>
+    <button class="key-btn arrow" onclick="pressKey('up')">&#9650;</button><button class="key-btn arrow" onclick="pressKey('down')">&#9660;</button><button class="key-btn arrow" onclick="pressKey('left')">&#9664;</button><button class="key-btn arrow" onclick="pressKey('right')">&#9654;</button>
+    <div class="key-divider"></div>
+    <button class="key-btn" onclick="pressKey('~')">~</button><button class="key-btn" onclick="pressKey('|')">|</button><button class="key-btn" onclick="pressKey('/')">/</button><button class="key-btn" onclick="pressKey('-')">-</button><button class="key-btn" onclick="pressKey('_')">_</button>
+  </div>
+</div>
+
+<!-- ========== ADD MACHINE ========== -->
+<div class="screen" id="screen-addmachine">
+  <div class="navbar" style="padding-bottom:8px"><div class="navbar-compact"><div class="navbar-back" onclick="goBack('machines')"><svg><use href="#i-back"/></svg>Cancel</div><div class="navbar-inline-title">Add Machine</div><div class="navbar-action" onclick="saveMachine()">Save</div></div></div>
+  <div class="content">
+    <div class="section-header">Connection</div>
+    <div class="form-section"><div class="form-label">Display Name</div><input class="form-input" id="amName" placeholder="My MacBook Pro"></div>
+    <div class="form-section"><div class="form-label">Host</div><input class="form-input mono" id="amHost" placeholder="192.168.1.42 or hostname.local" autocapitalize="none" autocorrect="off"></div>
+    <div class="form-row"><div class="form-section"><div class="form-label">Port</div><input class="form-input mono" id="amPort" placeholder="22" inputmode="numeric" value="22"></div><div class="form-section"><div class="form-label">Username</div><input class="form-input mono" id="amUser" placeholder="nerveband" autocapitalize="none" autocorrect="off"></div></div>
+    <div class="section-header">Icon</div>
+    <div class="icon-picker" id="iconPicker"></div>
+    <div class="section-header">Authentication</div>
+    <div class="card-list">
+      <div class="card-item" id="authKey" onclick="selectAuth('key')" style="background:rgba(10,132,255,.1)"><div class="ci-icon" style="background:rgba(10,132,255,.15)"><svg style="color:var(--accent)"><use href="#i-key"/></svg></div><div class="ci-info"><div class="ci-name">SSH Key</div><div class="ci-detail">Use device key or imported key</div></div><span class="ci-right"><svg style="width:20px;height:20px;color:var(--accent)" id="authKeyCheck"><use href="#i-check"/></svg></span></div>
+      <div class="card-item" id="authPass" onclick="selectAuth('password')"><div class="ci-icon" style="background:rgba(255,255,255,.05)"><svg style="color:var(--text-secondary)"><use href="#i-lock"/></svg></div><div class="ci-info"><div class="ci-name">Password</div><div class="ci-detail">Enter password on connect</div></div><span class="ci-right"><svg style="width:20px;height:20px;color:var(--accent);display:none" id="authPassCheck"><use href="#i-check"/></svg></span></div>
+    </div>
+    <div style="margin:16px;background:rgba(255,214,10,.08);border:1px solid rgba(255,214,10,.2);border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start">
+      <svg style="width:20px;height:20px;color:var(--yellow);flex-shrink:0;margin-top:1px"><use href="#i-alert"/></svg>
+      <div style="font-size:14px;color:var(--text-secondary);line-height:1.5"><span style="font-family:var(--mono);color:var(--text)">zmosh</span> must be installed on this machine. zsync will verify on first connect and guide you through setup if needed.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== KEYS ========== -->
+<div class="screen" id="screen-keys">
+  <div class="navbar"><div class="navbar-title">SSH Keys</div><div class="navbar-subtitle">Generate and manage keys on-device</div></div>
+  <div class="content">
+    <div class="section-header">Device Key (Secure Enclave)</div>
+    <div class="key-card"><div class="key-card-title"><svg style="width:16px;height:16px;color:var(--green)"><use href="#i-key"/></svg> zsync-iphone <span style="color:var(--green);font-size:12px;font-weight:500">Ed25519</span></div><div class="key-fingerprint">ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...<br>zsync-iphone@zsync</div><div class="key-actions"><button class="key-action-btn primary" onclick="showToast('Public key copied')">Copy Public Key</button><button class="key-action-btn" onclick="showToast('Share sheet')"><svg style="width:14px;height:14px;vertical-align:-2px"><use href="#i-share"/></svg> Share</button></div></div>
+    <div style="padding:16px 16px 8px;font-size:14px;color:var(--text-secondary);line-height:1.5">Add this public key to <span style="font-family:var(--mono);color:var(--text)">~/.ssh/authorized_keys</span> on each machine. No private key ever leaves your device.</div>
+    <div class="section-header">Imported Keys</div>
+    <div class="card-list"><div class="card-item"><div class="ci-icon" style="background:rgba(255,255,255,.05)"><svg style="color:var(--text-secondary)"><use href="#i-key"/></svg></div><div class="ci-info"><div class="ci-name">id_ed25519</div><div class="ci-detail">Imported from iCloud Keychain</div></div><span class="ci-right"><span class="chevron-icon"><svg><use href="#i-chevron"/></svg></span></span></div></div>
+    <div style="padding:16px"><button class="action-btn" onclick="showToast('Generate new key pair')" style="width:100%;flex-direction:row;gap:8px;justify-content:center"><svg style="width:18px;height:18px"><use href="#i-plus"/></svg>Generate New Key</button></div>
+  </div><div class="tab-bar" id="keysTabs"></div>
+</div>
+
+<!-- ========== SETTINGS ========== -->
+<div class="screen" id="screen-settings">
+  <div class="navbar"><div class="navbar-title">Settings</div></div>
+  <div class="content">
+    <div class="section-header">Terminal Theme</div><div class="theme-list" id="themeList"></div><div id="themePreviewContainer"></div>
+    <div class="section-header">Terminal Font</div><div class="card-list" id="fontList"></div>
+    <div class="section-header">Security</div><div class="card-list"><div class="settings-row" onclick="showToast('Face ID toggled')"><span class="settings-label">Require Face ID</span><span class="settings-value" style="color:var(--green)">On</span></div></div>
+    <div class="section-header">Sync</div><div class="card-list"><div class="settings-row"><span class="settings-label">iCloud Sync</span><span class="settings-value" style="color:var(--green)">On</span></div><div class="settings-row"><span class="settings-label">Sync Keys via iCloud Keychain</span><span class="settings-value">Off</span></div></div>
+    <div class="section-header">About</div><div class="card-list"><div class="settings-row"><span class="settings-label">Version</span><span class="settings-value">1.0.0</span></div></div>
+  </div><div class="tab-bar" id="settingsTabs"></div>
+</div>
+
+<script>
+const machines={
+  mbp:{name:'MacBook Pro',host:'192.168.1.42',health:'online',icon:'laptop',iconColor:'ic-blue',zmosh:true,sessions:[
+    {name:'apcsp-1',path:'~/GitHub/aak-class-25-26/apcsp',clients:1},
+    {name:'ashraf-readme',path:'~/Documents/GitHub/readme',clients:0},
+    {name:'bbcli',path:'~/Documents/GitHub/agent-to-bricks',clients:1},
+    {name:'wd-client-manage',path:'~/Projects/wd-clients-ramadan-2026',clients:0},
+    {name:'workandpromise',path:'~/Documents/Projects/workandpromise',clients:1},
+    {name:'zmosh-picker',path:'~/Documents/GitHub/zmosh-picker',clients:1}
+  ]},
+  mini:{name:'Mac Mini',host:'192.168.1.50',health:'online',icon:'desktop',iconColor:'ic-purple',zmosh:true,sessions:[
+    {name:'client-dash',path:'~/Projects/client-dashboard',clients:1},
+    {name:'backup-scripts',path:'~/scripts/backup',clients:0}
+  ]},
+  vps:{name:'Production VPS',host:'45.33.22.10',health:'online',icon:'cloud',iconColor:'ic-green',zmosh:false,sessions:[]},
+  newmac:{name:'Office iMac',host:'10.0.1.15',health:'online',icon:'desktop',iconColor:'ic-orange',zmosh:false,sessions:[]}
+};
+const recents=[
+  {session:'bbcli',machine:'MacBook Pro',machineId:'mbp',active:true,time:'2m ago'},
+  {session:'zmosh-picker',machine:'MacBook Pro',machineId:'mbp',active:true,time:'5m ago'},
+  {session:'client-dash',machine:'Mac Mini',machineId:'mini',active:true,time:'1h ago'},
+  {session:'deploy-prod',machine:'Production VPS',machineId:'vps',active:false,time:'3h ago'},
+  {session:'apcsp-1',machine:'MacBook Pro',machineId:'mbp',active:true,time:'6h ago'}
+];
+const dirs=[
+  {name:'zmosh-picker',path:'~/Documents/GitHub/zmosh-picker'},
+  {name:'agent-to-bricks',path:'~/Documents/GitHub/agent-to-bricks'},
+  {name:'workandpromise',path:'~/Documents/Projects/workandpromise'},
+  {name:'aak-class-25-26',path:'~/GitHub/aak-class-25-26'},
+  {name:'wd-clients-ramadan-2026',path:'~/Projects/wd-clients-ramadan-2026'},
+  {name:'readme',path:'~/Documents/GitHub/readme'},
+  {name:'dotfiles',path:'~/dotfiles'},
+  {name:'scripts',path:'~/scripts'},
+  {name:'api-server',path:'~/Projects/api-server'},
+  {name:'deploy',path:'~/deploy'}
+];
+const themes=[
+  {name:'Dracula',bg:'#282a36',fg:'#f8f8f2',green:'#50fa7b',comment:'#6272a4',accent:'#bd93f9'},
+  {name:'Solarized Dark',bg:'#002b36',fg:'#839496',green:'#859900',comment:'#586e75',accent:'#268bd2'},
+  {name:'Nord',bg:'#2e3440',fg:'#d8dee9',green:'#a3be8c',comment:'#616e88',accent:'#88c0d0'},
+  {name:'Catppuccin Mocha',bg:'#1e1e2e',fg:'#cdd6f4',green:'#a6e3a1',comment:'#6c7086',accent:'#cba6f7'},
+  {name:'Tokyo Night',bg:'#1a1b26',fg:'#a9b1d6',green:'#9ece6a',comment:'#565f89',accent:'#7aa2f7'},
+  {name:'One Dark',bg:'#282c34',fg:'#abb2bf',green:'#98c379',comment:'#5c6370',accent:'#61afef'},
+  {name:'Gruvbox Dark',bg:'#282828',fg:'#ebdbb2',green:'#b8bb26',comment:'#928374',accent:'#83a598'},
+  {name:'Default',bg:'#000000',fg:'#e0e0e0',green:'#30d158',comment:'#636366',accent:'#0a84ff'}
+];
+const fonts=[
+  {name:'JetBrains Mono',css:"'JetBrains Mono',monospace"},
+  {name:'SF Mono',css:"'SF Mono',monospace"},
+  {name:'Menlo',css:"'Menlo',monospace"},
+  {name:'Fira Code',css:"'Fira Code',monospace"},
+  {name:'Source Code Pro',css:"'Source Code Pro',monospace"},
+  {name:'IBM Plex Mono',css:"'IBM Plex Mono',monospace"},
+  {name:'Cascadia Code',css:"'Cascadia Code',monospace"},
+  {name:'Hack',css:"'Hack',monospace"},
+  {name:'Inconsolata',css:"'Inconsolata',monospace"},
+  {name:'Monaco',css:"'Monaco',monospace"}
+];
+const machineIcons=[
+  {icon:'laptop',label:'Laptop',color:'ic-blue'},
+  {icon:'desktop',label:'Desktop',color:'ic-purple'},
+  {icon:'server',label:'Server',color:'ic-green'},
+  {icon:'cloud',label:'Cloud',color:'ic-teal'},
+  {icon:'cpu',label:'Chip',color:'ic-orange'},
+  {icon:'globe',label:'Globe',color:'ic-pink'},
+  {icon:'terminal',label:'Terminal',color:'ic-yellow'},
+  {icon:'wifi',label:'Network',color:'ic-blue'},
+  {icon:'home',label:'Home',color:'ic-green'},
+  {icon:'lock',label:'Secure',color:'ic-red'}
+];
+let curMachine=null,curSession=null,ctrlActive=false,altActive=false,pendingKill=null,selectedTheme='Dracula',selectedFont='JetBrains Mono',selectedMachineIcon='laptop',newSessionDir='~/Documents/GitHub/zmosh-picker',cmdHistory=[];
+
+function tabBar(a){return`<div class="tab-item ${a==='sessions'?'active':''}" onclick="switchTab('sessions')"><svg><use href="#i-terminal"/></svg><span class="tab-label">Sessions</span></div><div class="tab-item ${a==='keys'?'active':''}" onclick="switchTab('keys')"><svg><use href="#i-key"/></svg><span class="tab-label">Keys</span></div><div class="tab-item ${a==='settings'?'active':''}" onclick="switchTab('settings')"><svg><use href="#i-gear"/></svg><span class="tab-label">Settings</span></div>`}
+function init(){['mainTabs','keysTabs','settingsTabs'].forEach((id,i)=>document.getElementById(id).innerHTML=tabBar(['sessions','keys','settings'][i]));renderHome();renderThemes();renderFonts();renderDirs();renderHistoryList()}
+function renderHome(){
+  document.getElementById('quickJumpList').innerHTML=recents.map(r=>`<div class="card-item" onclick="quickJump('${r.session}','${r.machine}','${r.machineId}')"><div class="ci-icon" style="background:rgba(255,255,255,.05)"><svg style="color:var(--text-secondary)"><use href="#i-terminal"/></svg></div><div class="ci-info"><div class="ci-name">${r.session}</div><div class="ci-detail"><span style="display:inline-flex;align-items:center;gap:4px"><span class="status-dot ${r.active?'dot-active':'dot-idle'}" style="width:6px;height:6px"></span>${r.machine}</span> · ${r.time}</div></div><span class="ci-right"><span class="chevron-icon"><svg><use href="#i-chevron"/></svg></span></span></div>`).join('');
+  document.getElementById('machinesList').innerHTML=Object.entries(machines).map(([id,m])=>{const ac=m.sessions.filter(s=>s.clients>0).length;const detail=m.zmosh?`${m.sessions.length} sessions · ${ac} active`:`<span style="color:var(--yellow)">Setup required</span>`;return`<div class="card-item" onclick="goToSessions('${m.name}','${id}')"><div class="ci-icon" style="background:rgba(255,255,255,.05)"><svg class="${m.iconColor}"><use href="#i-${m.icon}"/></svg></div><div class="ci-info"><div class="ci-name">${m.name}</div><div class="ci-detail">${detail}</div></div><span class="ci-right">${m.zmosh?`<span class="health-dot health-${m.health}"></span>`:`<svg style="width:16px;height:16px;color:var(--yellow)"><use href="#i-alert"/></svg>`}<span class="chevron-icon"><svg><use href="#i-chevron"/></svg></span></span></div>`}).join('')}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+id).classList.add('active')}
+function switchTab(t){showScreen(t==='sessions'?'machines':t);if(t==='sessions')renderHome()}
+function goBack(t){if(t==='machines'){showScreen('machines');renderHome()}else showScreen(t)}
+function goToSessions(n,id){
+  curMachine=id;const m=machines[id];
+  if(!m.zmosh){
+    document.getElementById('setupMachineName').textContent=n;
+    document.getElementById('setupHostName').textContent=m.host;
+    document.getElementById('connectText').textContent='Connecting...';
+    document.getElementById('connectSub').textContent=m.host;
+    document.getElementById('connectOverlay').classList.add('show');
+    setTimeout(()=>{document.getElementById('connectOverlay').classList.remove('show');
+      document.getElementById('connectText').textContent='Checking zmosh...';
+      document.getElementById('connectSub').textContent='Running zmosh list';
+      document.getElementById('connectOverlay').classList.add('show');
+      setTimeout(()=>{document.getElementById('connectOverlay').classList.remove('show');showScreen('setup')},800)},600);
+    return;
+  }
+  document.getElementById('sessionMachineName').textContent=n;renderSessions(id);showScreen('sessions')
+}
+function goToTerminal(sn,mn){curSession=sn;document.getElementById('termTitle').textContent=sn;document.getElementById('termBadge').textContent=mn;document.getElementById('connectText').textContent='Attaching...';document.getElementById('connectSub').textContent=sn+' on '+mn;document.getElementById('connectOverlay').classList.add('show');setTimeout(()=>{document.getElementById('connectOverlay').classList.remove('show');showScreen('terminal');document.getElementById('termArea').innerHTML=`<div><span class="prompt">nerveband@${curMachine}</span> <span class="cmd">~/${sn}</span></div><div><span class="prompt">$</span> <span class="cursor"></span></div>`;closeAllDrawers()},700)}
+function quickJump(sn,mn,mid){curMachine=mid;goToTerminal(sn,mn)}
+function detachSession(){showToast('Detached from '+curSession);goBack('machines')}
+
+// Sessions
+function renderSessions(id){
+  const m=machines[id],c=document.getElementById('sessionsContent'),ac=m.sessions.filter(s=>s.clients>0).length;
+  let h=`<div class="section-header">${m.sessions.length} sessions · ${ac} active</div><div class="card-list">`;
+  m.sessions.forEach(s=>{const a=s.clients>0;h+=`<div class="session-wrapper"><div class="session-kill-bg">Kill</div><div class="session-item" ontouchstart="swS(event)" ontouchmove="swM(event)" ontouchend="swE(event,'${s.name}','${m.name}')" onclick="goToTerminal('${s.name}','${m.name}')"><div class="session-icon"><svg><use href="#i-terminal"/></svg></div><div class="session-info"><div class="session-name">${s.name}</div><div class="session-path">${s.path}</div></div><div class="ci-right" style="gap:6px"><span class="status-dot ${a?'dot-active':'dot-idle'}"></span><span class="${a?'sl-active':'sl-idle'}">${a?'active':'idle'}</span></div></div></div>`});
+  h+=`</div><div style="padding:16px"><button class="action-btn primary" onclick="openNewSession()" style="width:100%;flex-direction:row;gap:8px;justify-content:center"><svg style="width:18px;height:18px"><use href="#i-plus"/></svg>New Session</button></div><div class="swipe-hint">Swipe left on a session to kill it</div>`;
+  c.innerHTML=h}
+
+// Swipe
+let swX=0,swEl=null;
+function swS(e){swX=e.touches[0].clientX;swEl=e.currentTarget}
+function swM(e){if(!swEl)return;const d=e.touches[0].clientX-swX;if(d<0){swEl.style.transform=`translateX(${Math.max(d,-80)}px)`;e.preventDefault()}}
+function swE(e,sn,mn){if(!swEl)return;if(e.changedTouches[0].clientX-swX<-50){swEl.style.transform='translateX(-80px)';openKillSheet(sn,mn)}else swEl.style.transform='translateX(0)';swEl=null}
+function openKillSheet(sn,mn){pendingKill={s:sn,m:mn};document.getElementById('killSheetTitle').textContent=`Kill "${sn}"?`;document.getElementById('killSheetDesc').textContent=`This will terminate the session on ${mn}.`;document.getElementById('killSheet').classList.add('show')}
+function confirmKill(){if(pendingKill)showToast('Killed '+pendingKill.s);closeSheet('killSheet');if(curMachine)renderSessions(curMachine)}
+function closeSheet(id){document.getElementById(id).classList.remove('show');document.querySelectorAll('.session-item').forEach(e=>e.style.transform='');pendingKill=null}
+document.getElementById('killSheet').addEventListener('click',function(e){if(e.target===this)closeSheet('killSheet')});
+
+// New session
+function openNewSession(){
+  const m=machines[curMachine];
+  const existing=m.sessions.map(s=>s.name);
+  // Suggest name: folder-based with auto-increment, or date
+  const base=m.sessions.length?m.sessions[m.sessions.length-1].path.split('/').pop():'new-session';
+  const d=new Date();const ds=String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  let suggested=base+'-'+ds;
+  if(existing.includes(suggested)){let n=2;while(existing.includes(base+'-'+n))n++;suggested=base+'-'+n}
+  document.getElementById('nsName').value=suggested;
+  newSessionDir=m.sessions.length?m.sessions[m.sessions.length-1].path:'~';
+  document.getElementById('nsDirPath').textContent=newSessionDir;
+  document.getElementById('nsNameHint').textContent='Auto-generated. Tap x to type your own.';
+  showScreen('newsession');
+}
+function clearSessionName(){const el=document.getElementById('nsName');el.value='';el.focus();document.getElementById('nsNameHint').textContent='Type a custom session name.'}
+function createSession(){const n=document.getElementById('nsName').value.trim()||'new-session';showToast('Created '+n);goToTerminal(n,machines[curMachine]?.name||'machine')}
+
+// Pick dir
+function renderDirs(){document.getElementById('dirList').innerHTML=dirs.map(d=>`<div class="dir-item" onclick="pickDir('${d.name}','${esc(d.path)}')"><svg><use href="#i-folder"/></svg><div style="min-width:0"><div class="dir-name">${d.name}</div><div class="dir-path">${d.path}</div></div></div>`).join('')}
+function filterDirs(){const q=document.getElementById('dirSearch').value.toLowerCase();document.getElementById('dirList').innerHTML=dirs.filter(d=>d.name.toLowerCase().includes(q)||d.path.toLowerCase().includes(q)).map(d=>`<div class="dir-item" onclick="pickDir('${d.name}','${esc(d.path)}')"><svg><use href="#i-folder"/></svg><div style="min-width:0"><div class="dir-name">${d.name}</div><div class="dir-path">${d.path}</div></div></div>`).join('')}
+function pickDir(name,path){document.getElementById('nsDirPath').textContent=path;document.getElementById('nsName').value=name;document.getElementById('nsNameHint').textContent='Named after directory. Tap x to customize.';newSessionDir=path;document.getElementById('dirSearch').value='';renderDirs();goBack('newsession')}
+
+// Terminal
+function closeAllDrawers(){['snippetDrawer','historyDrawer'].forEach(d=>document.getElementById(d).classList.remove('open'));['snippetsToggle','historyToggle'].forEach(d=>document.getElementById(d).classList.remove('active'))}
+function toggleDrawer(w){const s=w==='snippets'?'snippetDrawer':'historyDrawer',o=w==='snippets'?'historyDrawer':'snippetDrawer',st=w==='snippets'?'snippetsToggle':'historyToggle',ot=w==='snippets'?'historyToggle':'snippetsToggle';const el=document.getElementById(s),op=el.classList.contains('open');document.getElementById(o).classList.remove('open');document.getElementById(ot).classList.remove('active');el.classList.toggle('open',!op);document.getElementById(st).classList.toggle('active',!op)}
+function useSnippet(cmd){document.getElementById('compInput').value=cmd;updateSendBtn();document.getElementById('compInput').focus();closeAllDrawers()}
+function pressKey(k){const n={esc:'ESC',tab:'TAB',up:'Up',down:'Down',left:'Left',right:'Right'};let l=n[k]||k;if(ctrlActive){l='Ctrl+'+l;ctrlActive=false;document.getElementById('keyCtrl').classList.remove('active')}if(altActive){l='Alt+'+l;altActive=false;document.getElementById('keyAlt').classList.remove('active')}showToast('Sent: '+l)}
+function toggleMod(m){if(m==='ctrl'){ctrlActive=!ctrlActive;document.getElementById('keyCtrl').classList.toggle('active',ctrlActive)}else{altActive=!altActive;document.getElementById('keyAlt').classList.toggle('active',altActive)}}
+function toggleMic(){const b=document.getElementById('micBtn'),i=document.getElementById('compInput');if(b.classList.contains('recording')){b.classList.remove('recording');i.value='git commit -m "fix auth bug"';i.placeholder='Type or speak a command...';updateSendBtn();showToast('Transcription complete')}else{b.classList.add('recording');i.value='';i.placeholder='Listening...';updateSendBtn();setTimeout(()=>{if(b.classList.contains('recording')){b.classList.remove('recording');i.value='git commit -m "fix auth bug"';i.placeholder='Type or speak a command...';updateSendBtn()}},3000)}}
+function sendCommand(){const i=document.getElementById('compInput'),cmd=i.value.trim();if(!cmd)return;cmdHistory.unshift({cmd,time:'just now'});renderHistoryList();const a=document.getElementById('termArea'),c=a.querySelector('.cursor');if(c)c.remove();const ls=a.querySelectorAll('div'),ll=ls[ls.length-1];ll.innerHTML=`<span class="prompt">$</span> <span class="cmd">${esc(cmd)}</span>`;a.innerHTML+=`<div class="output">[sent]</div><div><span class="prompt">$</span> <span class="cursor"></span></div>`;a.scrollTop=a.scrollHeight;i.value='';updateSendBtn()}
+function renderHistoryList(){const all=[...cmdHistory,...[{cmd:'git status',time:'10m ago'},{cmd:'npm run test',time:'15m ago'},{cmd:'git diff src/auth.ts',time:'20m ago'}]];document.getElementById('historyList').innerHTML=all.slice(0,8).map(h=>`<div class="history-item" onclick="useSnippet('${esc(h.cmd)}')">${esc(h.cmd)}<div class="history-time">${h.time}</div></div>`).join('')}
+function updateSendBtn(){document.getElementById('sendBtn').classList.toggle('disabled',!document.getElementById('compInput').value.trim())}
+document.getElementById('compInput').addEventListener('input',updateSendBtn);
+document.getElementById('compInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCommand()}});
+
+// Add machine
+function initAddMachine(){selectedMachineIcon='laptop';renderIconPicker()}
+function renderIconPicker(){document.getElementById('iconPicker').innerHTML=machineIcons.map(i=>`<div class="icon-pick ${i.icon===selectedMachineIcon?'selected':''}" onclick="pickMachineIcon('${i.icon}','${i.color}')"><svg class="${i.color}"><use href="#i-${i.icon}"/></svg></div>`).join('')}
+function pickMachineIcon(icon,color){selectedMachineIcon=icon;renderIconPicker()}
+function selectAuth(type){document.getElementById('authKey').style.background=type==='key'?'rgba(10,132,255,.1)':'';document.getElementById('authPass').style.background=type==='password'?'rgba(10,132,255,.1)':'';document.getElementById('authKeyCheck').style.display=type==='key'?'block':'none';document.getElementById('authPassCheck').style.display=type==='password'?'block':'none'}
+function saveMachine(){showToast('Saved '+(document.getElementById('amName').value||'New Machine'));goBack('machines')}
+
+// Themes
+function renderThemes(){document.getElementById('themeList').innerHTML=themes.map(t=>`<div class="theme-item ${t.name===selectedTheme?'selected':''}" onclick="selectTheme('${t.name}')"><div class="theme-swatch"><span style="background:${t.bg}"></span><span style="background:${t.green}"></span><span style="background:${t.accent}"></span></div><span class="theme-name">${t.name}</span><span class="theme-check"><svg><use href="#i-check"/></svg></span></div>`).join('');renderThemePreview()}
+function selectTheme(n){selectedTheme=n;renderThemes()}
+function renderThemePreview(){const t=themes.find(x=>x.name===selectedTheme)||themes[0];const f=fonts.find(x=>x.name===selectedFont)||fonts[0];document.getElementById('themePreviewContainer').innerHTML=`<div class="theme-preview"><div class="theme-preview-bar" style="background:${t.bg};color:${t.comment}">${t.name} · ${f.name}</div><div class="theme-preview-body" style="background:${t.bg};color:${t.fg};font-family:${f.css}"><span style="color:${t.green}">nerveband@mbp</span> <span style="color:${t.accent}">~/projects</span><br><span style="color:${t.green}">$</span> git status<br><span style="color:${t.comment}">On branch main</span><br><span style="color:${t.comment}">Changes not staged:</span><br>&nbsp;&nbsp;<span style="color:${t.accent}">modified:</span> src/index.ts<br><span style="color:${t.green}">$</span> <span style="background:${t.fg};width:7px;height:14px;display:inline-block;opacity:.7"></span></div></div>`}
+
+// Fonts
+function renderFonts(){document.getElementById('fontList').innerHTML=fonts.map(f=>`<div class="font-item ${f.name===selectedFont?'selected':''}" onclick="selectFont('${f.name}')"><span class="font-sample" style="font-family:${f.css}">${f.name} — ls -la ~/projects</span><span class="font-check"><svg><use href="#i-check"/></svg></span></div>`).join('')}
+function selectFont(n){selectedFont=n;const f=fonts.find(x=>x.name===n);if(f)document.documentElement.style.setProperty('--mono',f.css);renderFonts();renderThemePreview()}
+
+// Setup required
+function openSetupGuide(){showToast('Opening GitHub README...');setTimeout(()=>window.open('https://github.com/nerveband/zmosh-picker#installation','_blank'),300)}
+function recheckSetup(){
+  const m=machines[curMachine];
+  document.getElementById('connectText').textContent='Checking zmosh...';
+  document.getElementById('connectSub').textContent='Running zmosh list on '+m.host;
+  document.getElementById('connectOverlay').classList.add('show');
+  setTimeout(()=>{
+    document.getElementById('connectOverlay').classList.remove('show');
+    if(!m.zmosh){showToast('zmosh not found. Follow the install guide.')}
+    else{document.getElementById('sessionMachineName').textContent=m.name;renderSessions(curMachine);showScreen('sessions')}
+  },1500)
+}
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+let tt;function showToast(m){clearTimeout(tt);const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');tt=setTimeout(()=>t.classList.remove('show'),2000)}
+init();
+</script>
+</body>
+</html>
