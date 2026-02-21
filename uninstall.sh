@@ -10,7 +10,7 @@ fi
 
 if [[ -f ~/.zshrc ]]; then
   sed -i '' '/# zmosh-picker: auto-launch session picker/d' ~/.zshrc
-  sed -i '' '/zmosh-picker/d' ~/.zshrc
+  sed -i '' '/command -v zmosh-picker.*&& zmosh-picker/d' ~/.zshrc
   echo "Removed hook from ~/.zshrc"
 fi
 
