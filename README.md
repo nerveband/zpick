@@ -43,6 +43,16 @@ The install script checks for dependencies, copies the script to `~/.local/bin/`
 
 Open a new terminal and you should see it.
 
+## Upgrade
+
+```bash
+cd zmosh-picker
+git pull
+./install.sh
+```
+
+The install script copies the latest version to `~/.local/bin/`. Open a new terminal to use the updated picker.
+
 ## Usage
 
 ```
@@ -52,8 +62,8 @@ Open a new terminal and you should see it.
   2  dotfiles . ~/dotfiles
   3  ai-happy-design . ~/Doc/GH/ai-happy-design
 
-  enter new myproject-1
-  z pick dir  d +date  k kill  esc skip
+  enter new myproject
+  c custom  z pick dir  d +date  k kill  esc skip
 
   >
 ```
@@ -65,9 +75,10 @@ Open a new terminal and you should see it.
 | `1`-`9` | Attach to that session |
 | `a`-`y` | Sessions 10+ |
 | `Enter` | New session in current directory |
+| `c` | Custom name — type a name, then pick where to create it |
 | `z` | Pick a directory with zoxide, then new session there |
 | `d` | New session with today's date as suffix |
-| `k` | Kill mode — pick a session to kill |
+| `k` | Kill mode — pick a session to kill (returns to menu after) |
 | `Esc` | Skip, just give me a normal shell |
 
 Everything is single-press. No typing names, no confirming.
@@ -76,11 +87,12 @@ Everything is single-press. No typing names, no confirming.
 
 | Key | Format | Example |
 |-----|--------|---------|
-| `Enter` | `<dirname>-<N>` | `api-server-1`, `api-server-2` |
+| `Enter` | `<dirname>` or `<dirname>-<N>` | `api-server`, then `api-server-2` |
+| `c` | whatever you type | `my-thing` |
 | `d` | `<dirname>-MMDD` | `api-server-0220` |
-| `z` | `<picked-dir>-<N>` | `ai-happy-design-1` |
+| `z` | `<picked-dir>` or `<picked-dir>-<N>` | `ai-happy-design`, then `ai-happy-design-2` |
 
-Counter auto-increments past existing sessions.
+First session gets the bare name. Counter starts at `-2` only when a conflict exists.
 
 ### The `*` and `.` indicators
 

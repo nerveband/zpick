@@ -44,10 +44,12 @@
     <text x="40" y="210">
       <tspan fill="#9ece6a" font-weight="bold">enter</tspan>
       <tspan fill="#565f89"> new </tspan>
-      <tspan fill="#c0caf5" font-weight="bold">myproject-1</tspan>
+      <tspan fill="#c0caf5" font-weight="bold">myproject</tspan>
     </text>
 
     <text x="40" y="234">
+      <tspan fill="#bb9af7">c</tspan>
+      <tspan fill="#565f89"> custom  </tspan>
       <tspan fill="#bb9af7">z</tspan>
       <tspan fill="#565f89"> pick dir  </tspan>
       <tspan fill="#7dcfff">d</tspan>
