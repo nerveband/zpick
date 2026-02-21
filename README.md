@@ -33,25 +33,81 @@ brew install fzf       # optional, used by zoxide
 
 ## Install
 
+### From source (Go 1.22+)
+
+```bash
+go install github.com/nerveband/zmosh-picker/cmd/zmosh-picker@latest
+```
+
+### From GitHub releases
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nerveband/zmosh-picker/main/install.sh | bash
+```
+
+### Build from source
+
 ```bash
 git clone https://github.com/nerveband/zmosh-picker.git
 cd zmosh-picker
-./install.sh
+make install
 ```
 
-The install script checks for dependencies, copies the script to `~/.local/bin/`, and adds a source hook to `~/.zshrc`. If you use Powerlevel10k, it places the hook before instant prompt so the picker can actually read keyboard input.
+### Add the shell hook
+
+```bash
+zmosh-picker install-hook
+```
+
+This adds the hook line to your `.zshrc` (or `.bashrc`). If you use Powerlevel10k, it places the hook before instant prompt so the picker can read keyboard input.
 
 Open a new terminal and you should see it.
 
-## Upgrade
+## CLI
 
-```bash
-cd zmosh-picker
-git pull
-./install.sh
+```
+zmosh-picker              Interactive TUI picker (default)
+zmosh-picker list         List sessions (human-readable)
+zmosh-picker list --json  List sessions (JSON for scripts/zsync)
+zmosh-picker check        Check dependencies
+zmosh-picker check --json Machine-readable dependency check
+zmosh-picker attach <n>   Attach or create session
+zmosh-picker kill <name>  Kill a session
+zmosh-picker install-hook Add shell hook to .zshrc/.bashrc
+zmosh-picker upgrade      Upgrade to the latest version
+zmosh-picker version      Print version
 ```
 
-The install script copies the latest version to `~/.local/bin/`. Open a new terminal to use the updated picker.
+### `list --json` output
+
+```json
+{
+  "sessions": [
+    {
+      "name": "bbcli",
+      "pid": 5678,
+      "clients": 1,
+      "started_in": "~/Documents/GitHub/agent-to-bricks",
+      "active": true
+    }
+  ],
+  "count": 1,
+  "zmosh_version": "0.4.2"
+}
+```
+
+### `check --json` output
+
+```json
+{
+  "zmosh": {"installed": true, "version": "0.4.2", "path": "/opt/homebrew/bin/zmosh"},
+  "zoxide": {"installed": true, "version": "0.9.4", "path": "/opt/homebrew/bin/zoxide"},
+  "fzf": {"installed": true, "version": "0.46.0", "path": "/opt/homebrew/bin/fzf"},
+  "shell": "zsh",
+  "os": "darwin",
+  "arch": "arm64"
+}
+```
 
 ## Usage
 
@@ -100,25 +156,34 @@ First session gets the bare name. Counter starts at `-2` only when a conflict ex
 
 ## How it works
 
-The `.zshrc` hook sources the script before p10k instant prompt. It calls `zmosh list` once, builds the menu, waits for one keypress, then runs `exec zmosh attach <name>` which replaces the shell process entirely. The rest of `.zshrc` never runs — so resuming a session is actually faster than a normal shell startup.
+The `.zshrc` hook runs the binary before the rest of your shell config. It calls `zmosh list` once, builds the menu, waits for one keypress, then runs `exec zmosh attach <name>` which replaces the process entirely. Resuming a session is actually faster than a normal shell startup.
 
 The picker skips itself when you're already inside a zmosh session, in a non-interactive shell, or when stdin isn't a terminal.
 
-### `zpick`
-
-If you're already inside a session and want to switch, type `zpick`. It brings up the same picker, lets you pick a session, and attaches to it. The install script adds this alias automatically.
-
 ### Killing sessions
 
-Press `k` to enter kill mode, then pick a session number to kill. You'll be asked to confirm with `y/n`. To skip confirmation, add this to your `.zshrc`:
+Press `k` to enter kill mode, then pick a session number to kill. You'll be asked to confirm with `y/n`. To skip confirmation:
 
 ```bash
 export ZMOSH_PICKER_NO_CONFIRM=1
 ```
 
+## Cross-platform
+
+zmosh-picker is a Go binary that works on:
+- macOS (arm64, amd64)
+- Linux (arm64, amd64)
+- zsh and bash
+
 ## Works on narrow screens
 
-The layout fits ~30 character widths. Action keys are stacked on two lines. No padding on session names. I built this mostly so I could SSH from my phone (Echo) and not hate the experience.
+The layout fits ~30 character widths. Action keys are stacked on two lines. No padding on session names. I built this mostly so I could SSH from my phone and not hate the experience.
+
+## Uninstall
+
+```bash
+zmosh-picker install-hook --remove
+```
 
 ## Related projects
 
@@ -127,16 +192,6 @@ The layout fits ~30 character widths. Action keys are stacked on two lines. No p
 - [zmx-session-manager](https://github.com/mdsakalu/zmx-session-manager) — TUI session manager for zmx/zmosh
 - [zoxide](https://github.com/ajeetdsouza/zoxide) — Frecency-based `cd` replacement
 - [fzf](https://github.com/junegunn/fzf) — Fuzzy finder
-
-## Design
-
-See [docs/plans/2026-02-20-zmosh-picker-design.md](docs/plans/2026-02-20-zmosh-picker-design.md) for the full rationale.
-
-## Uninstall
-
-```bash
-./uninstall.sh
-```
 
 ## License
 

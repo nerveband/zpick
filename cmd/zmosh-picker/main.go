@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/nerveband/zmosh-picker/internal/update"
 )
 
 var version = "dev"
@@ -15,6 +17,16 @@ func main() {
 			os.Exit(1)
 		}
 		return
+	}
+
+	// Start async update check for non-interactive commands
+	// Skip for: version, upgrade, help, and the default picker
+	var updateCh <-chan update.CheckResult
+	switch os.Args[1] {
+	case "version", "upgrade", "--help", "-h", "help":
+		// don't check
+	default:
+		updateCh = update.CheckAsync(version)
 	}
 
 	switch os.Args[1] {
@@ -51,6 +63,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "zmosh-picker: %v\n", err)
 			os.Exit(1)
 		}
+	case "upgrade":
+		if err := runUpgrade(); err != nil {
+			fmt.Fprintf(os.Stderr, "zmosh-picker: %v\n", err)
+			os.Exit(1)
+		}
 	case "version":
 		fmt.Printf("zmosh-picker %s\n", version)
 	case "--help", "-h", "help":
@@ -59,6 +76,18 @@ func main() {
 		fmt.Fprintf(os.Stderr, "zmosh-picker: unknown command %q\n", os.Args[1])
 		printUsage()
 		os.Exit(1)
+	}
+
+	// Show update notification if available (non-blocking)
+	if updateCh != nil {
+		select {
+		case result := <-updateCh:
+			if notice := update.FormatNotice(result); notice != "" {
+				fmt.Fprint(os.Stderr, notice)
+			}
+		default:
+			// Don't wait if check hasn't finished
+		}
 	}
 }
 
@@ -72,5 +101,6 @@ Usage:
   zmosh-picker attach <n>   Attach or create session
   zmosh-picker kill <name>  Kill a session
   zmosh-picker install-hook Add shell hook to .zshrc/.bashrc
+  zmosh-picker upgrade      Upgrade to the latest version
   zmosh-picker version      Print version`)
 }

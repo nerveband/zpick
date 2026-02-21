@@ -27,6 +27,7 @@ func runCheck() error {
 		return nil
 	}
 
-	result.PrintHuman()
+	// Default: guided output with install instructions for missing deps
+	result.PrintGuide()
 	return nil
 }

@@ -78,12 +78,101 @@ func detectShell() string {
 	return "unknown"
 }
 
+// HasBrew checks if Homebrew is available.
+func HasBrew() bool {
+	_, err := exec.LookPath("brew")
+	return err == nil
+}
+
 // PrintHuman prints the check result in a human-readable format.
 func (r Result) PrintHuman() {
 	printDep("zmosh", r.Zmosh, true)
 	printDep("zoxide", r.Zoxide, false)
 	printDep("fzf", r.Fzf, false)
 	fmt.Printf("\nPlatform: %s/%s, Shell: %s\n", r.OS, r.Arch, r.Shell)
+}
+
+// PrintGuide prints a guided installation walkthrough for missing dependencies.
+// Returns true if any required dependencies are missing.
+func (r Result) PrintGuide() bool {
+	hasBrew := HasBrew()
+	missing := false
+
+	fmt.Println("\n  Dependency check:")
+	fmt.Println()
+
+	// zmosh (required)
+	if r.Zmosh.Installed {
+		fmt.Printf("  \033[32m\u2713\033[0m zmosh %s\n", r.Zmosh.Version)
+	} else {
+		missing = true
+		fmt.Printf("  \033[1;31m\u2717\033[0m zmosh \033[2m(required)\033[0m\n")
+		fmt.Println()
+		if hasBrew {
+			fmt.Println("    Install with Homebrew:")
+			fmt.Println("      brew install mmonad/tap/zmosh")
+		} else if r.OS == "darwin" {
+			fmt.Println("    First install Homebrew:")
+			fmt.Println("      /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"")
+			fmt.Println("    Then:")
+			fmt.Println("      brew install mmonad/tap/zmosh")
+		} else {
+			fmt.Println("    Build from source:")
+			fmt.Println("      git clone https://github.com/mmonad/zmosh.git")
+			fmt.Println("      cd zmosh && zig build -Doptimize=ReleaseSafe")
+			fmt.Println("      sudo cp zig-out/bin/zmosh /usr/local/bin/")
+		}
+		fmt.Println()
+		fmt.Println("    More info: https://github.com/mmonad/zmosh")
+		fmt.Println()
+	}
+
+	// zoxide (optional)
+	if r.Zoxide.Installed {
+		fmt.Printf("  \033[32m\u2713\033[0m zoxide %s \033[2m(optional — directory picker)\033[0m\n", r.Zoxide.Version)
+	} else {
+		fmt.Printf("  \033[33m\u25CB\033[0m zoxide \033[2m(optional — enables 'z' directory picker)\033[0m\n")
+		fmt.Println()
+		if hasBrew {
+			fmt.Println("    Install with Homebrew:")
+			fmt.Println("      brew install zoxide")
+		} else {
+			fmt.Println("    Install:")
+			fmt.Println("      curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh")
+		}
+		fmt.Println()
+		fmt.Println("    More info: https://github.com/ajeetdsouza/zoxide")
+		fmt.Println()
+	}
+
+	// fzf (optional)
+	if r.Fzf.Installed {
+		fmt.Printf("  \033[32m\u2713\033[0m fzf %s \033[2m(optional — fuzzy finder for zoxide)\033[0m\n", r.Fzf.Version)
+	} else {
+		fmt.Printf("  \033[33m\u25CB\033[0m fzf \033[2m(optional — fuzzy finder used by zoxide)\033[0m\n")
+		fmt.Println()
+		if hasBrew {
+			fmt.Println("    Install with Homebrew:")
+			fmt.Println("      brew install fzf")
+		} else {
+			fmt.Println("    Install:")
+			fmt.Println("      git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf")
+			fmt.Println("      ~/.fzf/install")
+		}
+		fmt.Println()
+		fmt.Println("    More info: https://github.com/junegunn/fzf")
+		fmt.Println()
+	}
+
+	fmt.Printf("\n  Platform: %s/%s, Shell: %s\n", r.OS, r.Arch, r.Shell)
+
+	if missing {
+		fmt.Println("\n  \033[1;31mRequired dependencies missing.\033[0m Install them and run again.")
+	} else {
+		fmt.Println("\n  \033[32mAll set!\033[0m Run 'zmosh-picker install-hook' to add the shell hook.")
+	}
+
+	return missing
 }
 
 func printDep(name string, d DepStatus, required bool) {
