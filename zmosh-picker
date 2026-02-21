@@ -2,158 +2,158 @@
 # zmosh-picker — single-keypress session launcher for zmosh
 # https://github.com/nerveband/zmosh-picker
 
-# ─── Guards ─────────────────────────────────────────────────────────
-# Skip picker if conditions aren't met.
-# The `return || exit` pattern handles both sourced and direct execution.
+_zmosh_picker_main() {
+  # ─── Guards ─────────────────────────────────────────────────────────
+  [[ ! -o interactive ]] && return 0
+  [[ -n "$ZMX_SESSION" ]] && return 0
+  [[ ! -t 0 ]] && return 0
+  command -v zmosh &>/dev/null || return 0
 
-[[ -n "$ZMX_SESSION" ]] && { return 0 2>/dev/null || exit 0; }
-[[ ! -t 0 ]] && { return 0 2>/dev/null || exit 0; }
-command -v zmosh &>/dev/null || { return 0 2>/dev/null || exit 0; }
+  # ─── Session name generators ───────────────────────────────────────
 
-# ─── Session name generators ───────────────────────────────────────
-
-# Generate session name with counter: <dirname>-<N>
-_zmosh_pick_name_counter() {
-  local base_dir="${1:-$PWD}"
-  local dirname="${base_dir:t}"  # zsh :t = basename
-  local existing_names
-  existing_names=($(zmosh list --short 2>/dev/null))
-  local n=1
-  while (( 1 )); do
-    local candidate="${dirname}-${n}"
-    if (( ! ${existing_names[(Ie)$candidate]} )); then
-      echo "$candidate"
-      return
-    fi
-    (( n++ ))
-  done
-}
-
-# Generate session name with date: <dirname>-MMDD
-_zmosh_pick_name_date() {
-  local base_dir="${1:-$PWD}"
-  local dirname="${base_dir:t}"
-  echo "${dirname}-$(date +%m%d)"
-}
-
-# ─── Parse active sessions ─────────────────────────────────────────
-
-typeset -a session_names session_clients session_dirs
-local line
-while IFS= read -r line; do
-  [[ -z "$line" ]] && continue
-  local name="" clients="" dir=""
-  local field
-  for field in ${(s:	:)line}; do
-    case "$field" in
-      session_name=*) name="${field#session_name=}" ;;
-      clients=*) clients="${field#clients=}" ;;
-      started_in=*) dir="${field#started_in=}" ;;
-    esac
-  done
-  [[ -n "$name" ]] || continue
-  session_names+=("$name")
-  session_clients+=("$clients")
-  # Shorten dir: replace $HOME with ~
-  local is_home=0
-  [[ "$dir" == "$HOME"* ]] && is_home=1
-  dir="${dir/$HOME/~}"
-  # Truncate to last 3 path segments if long
-  local parts=(${(s:/:)dir})
-  if (( ${#parts} > 4 )); then
-    if (( is_home )); then
-      dir="~/${parts[-3]}/${parts[-2]}/${parts[-1]}"
-    else
-      dir=".../${parts[-3]}/${parts[-2]}/${parts[-1]}"
-    fi
-  fi
-  session_dirs+=("$dir")
-done < <(zmosh list 2>/dev/null)
-
-local session_count=${#session_names}
-
-# ─── Build key-to-session mapping ──────────────────────────────────
-# Keys 1-9 for first 9 sessions, then a-y for rest (z is reserved for zoxide)
-
-typeset -A key_to_session
-local keys_display=()
-local key_chars="123456789abcdefghijklmnopqrstuvwxy"
-local i
-for (( i=1; i<=session_count && i<=${#key_chars}; i++ )); do
-  local key="${key_chars[$i]}"
-  key_to_session[$key]="${session_names[$i]}"
-  keys_display+=("$key")
-done
-
-# ─── Display ────────────────────────────────────────────────────────
-
-local default_name
-default_name="$(_zmosh_pick_name_counter)"
-
-if (( session_count > 0 )); then
-  echo ""
-  echo "  zmosh: $session_count active session$( (( session_count > 1 )) && echo s)"
-  for (( i=1; i<=session_count; i++ )); do
-    local client_label="${session_clients[$i]} client$( (( session_clients[$i] != 1 )) && echo s)"
-    printf "    %s) %-20s (%s)  %s\n" "${keys_display[$i]}" "${session_names[$i]}" "$client_label" "${session_dirs[$i]}"
-  done
-  echo ""
-  local range="${keys_display[1]}"
-  (( session_count > 1 )) && range="${keys_display[1]}-${keys_display[-1]}"
-  echo "  [$range] attach  [Enter] new: $default_name  [z] pick dir  [d] +date  [Esc] skip"
-else
-  echo ""
-  echo "  zmosh: no active sessions"
-  echo "  [Enter] new: $default_name  [z] pick dir  [d] +date  [Esc] skip"
-fi
-
-# ─── Single-keypress input ─────────────────────────────────────────
-
-local choice
-read -k1 choice 2>/dev/null
-echo "" # newline after keypress
-
-case "$choice" in
-  $'\e')  # Esc — plain shell
-    { return 0 2>/dev/null || exit 0; }
-    ;;
-  $'\n')  # Enter — new session in $PWD
-    echo "  -> $default_name"
-    exec zmosh attach "$default_name"
-    ;;
-  d)  # Date-suffixed new session in $PWD
-    local date_name
-    date_name="$(_zmosh_pick_name_date)"
-    echo "  -> $date_name"
-    exec zmosh attach "$date_name"
-    ;;
-  z)  # Zoxide pick dir, then new session
-    if command -v zoxide &>/dev/null; then
-      local picked_dir
-      picked_dir="$(zoxide query -i 2>/dev/null)"
-      if [[ -n "$picked_dir" ]]; then
-        cd "$picked_dir" || true
-        local zname
-        zname="$(_zmosh_pick_name_counter "$picked_dir")"
-        echo "  -> $zname (in $picked_dir)"
-        exec zmosh attach "$zname"
-      else
-        # User cancelled zoxide picker
-        { return 0 2>/dev/null || exit 0; }
+  _zmosh_pick_name_counter() {
+    local base_dir="${1:-$PWD}"
+    local dirname="${base_dir:t}"
+    local existing_names
+    existing_names=($(zmosh list --short 2>/dev/null))
+    local n=1
+    while (( 1 )); do
+      local candidate="${dirname}-${n}"
+      if (( ! ${existing_names[(Ie)$candidate]} )); then
+        echo "$candidate"
+        return
       fi
-    else
-      echo "  zoxide not installed -- skipping"
-      { return 0 2>/dev/null || exit 0; }
+      (( n++ ))
+    done
+  }
+
+  _zmosh_pick_name_date() {
+    local base_dir="${1:-$PWD}"
+    local dirname="${base_dir:t}"
+    echo "${dirname}-$(date +%m%d)"
+  }
+
+  # ─── Parse active sessions ─────────────────────────────────────────
+
+  local -a session_names session_clients session_dirs
+  local line name clients dir field is_home
+  local -a parts
+
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    name="" clients="" dir=""
+    for field in ${(s:	:)line}; do
+      case "$field" in
+        session_name=*) name="${field#session_name=}" ;;
+        clients=*) clients="${field#clients=}" ;;
+        started_in=*) dir="${field#started_in=}" ;;
+      esac
+    done
+    [[ -n "$name" ]] || continue
+    session_names+=("$name")
+    session_clients+=("$clients")
+    is_home=0
+    [[ "$dir" == "$HOME"* ]] && is_home=1
+    dir="${dir/$HOME/~}"
+    parts=(${(s:/:)dir})
+    if (( ${#parts} > 4 )); then
+      if (( is_home )); then
+        dir="~/${parts[-3]}/${parts[-2]}/${parts[-1]}"
+      else
+        dir=".../${parts[-3]}/${parts[-2]}/${parts[-1]}"
+      fi
     fi
-    ;;
-  *)  # Check if it's a session key
-    if [[ -n "${key_to_session[$choice]}" ]]; then
-      local target="${key_to_session[$choice]}"
-      echo "  -> $target"
-      exec zmosh attach "$target"
-    else
-      # Unknown key — drop to plain shell
-      { return 0 2>/dev/null || exit 0; }
-    fi
-    ;;
-esac
+    session_dirs+=("$dir")
+  done < <(zmosh list 2>/dev/null)
+
+  local session_count=${#session_names}
+
+  # ─── Build key-to-session mapping ──────────────────────────────────
+
+  local -A key_to_session
+  local -a keys_display
+  local key_chars="123456789abcdefghijklmnopqrstuvwxy"
+  local i key
+
+  for (( i=1; i<=session_count && i<=${#key_chars}; i++ )); do
+    key="${key_chars[$i]}"
+    key_to_session[$key]="${session_names[$i]}"
+    keys_display+=("$key")
+  done
+
+  # ─── Display ────────────────────────────────────────────────────────
+
+  local default_name
+  default_name="$(_zmosh_pick_name_counter)"
+
+  if (( session_count > 0 )); then
+    echo ""
+    echo "  zmosh: $session_count active session$( (( session_count > 1 )) && echo s)"
+    local client_label
+    for (( i=1; i<=session_count; i++ )); do
+      client_label="${session_clients[$i]} client$( (( session_clients[$i] != 1 )) && echo s)"
+      printf "    %s) %-20s (%s)  %s\n" "${keys_display[$i]}" "${session_names[$i]}" "$client_label" "${session_dirs[$i]}"
+    done
+    echo ""
+    local range="${keys_display[1]}"
+    (( session_count > 1 )) && range="${keys_display[1]}-${keys_display[-1]}"
+    echo "  [$range] attach  [Enter] new: $default_name  [z] pick dir  [d] +date  [Esc] skip"
+  else
+    echo ""
+    echo "  zmosh: no active sessions"
+    echo "  [Enter] new: $default_name  [z] pick dir  [d] +date  [Esc] skip"
+  fi
+
+  # ─── Single-keypress input ─────────────────────────────────────────
+
+  local choice
+  read -k1 choice 2>/dev/null
+  echo ""
+
+  case "$choice" in
+    $'\e')  # Esc — plain shell
+      return 0
+      ;;
+    $'\n')  # Enter — new session in $PWD
+      echo "  -> $default_name"
+      exec zmosh attach "$default_name"
+      ;;
+    d)  # Date-suffixed new session in $PWD
+      local date_name
+      date_name="$(_zmosh_pick_name_date)"
+      echo "  -> $date_name"
+      exec zmosh attach "$date_name"
+      ;;
+    z)  # Zoxide pick dir, then new session
+      if command -v zoxide &>/dev/null; then
+        local picked_dir
+        picked_dir="$(zoxide query -i 2>/dev/null)"
+        if [[ -n "$picked_dir" ]]; then
+          cd "$picked_dir" || true
+          local zname
+          zname="$(_zmosh_pick_name_counter "$picked_dir")"
+          echo "  -> $zname (in $picked_dir)"
+          exec zmosh attach "$zname"
+        else
+          return 0
+        fi
+      else
+        echo "  zoxide not installed -- skipping"
+        return 0
+      fi
+      ;;
+    *)  # Check if it's a session key
+      if [[ -n "${key_to_session[$choice]}" ]]; then
+        local target="${key_to_session[$choice]}"
+        echo "  -> $target"
+        exec zmosh attach "$target"
+      else
+        return 0
+      fi
+      ;;
+  esac
+}
+
+# Run and clean up
+_zmosh_picker_main
+unfunction _zmosh_picker_main _zmosh_pick_name_counter _zmosh_pick_name_date 2>/dev/null
