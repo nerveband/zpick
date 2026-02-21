@@ -6,7 +6,6 @@
 # Skip picker if conditions aren't met.
 # The `return || exit` pattern handles both sourced and direct execution.
 
-[[ ! -o interactive ]] && { return 0 2>/dev/null || exit 0; }
 [[ -n "$ZMX_SESSION" ]] && { return 0 2>/dev/null || exit 0; }
 [[ ! -t 0 ]] && { return 0 2>/dev/null || exit 0; }
 command -v zmosh &>/dev/null || { return 0 2>/dev/null || exit 0; }
