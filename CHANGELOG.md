@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.1
+
+- **Cleaner kill output** — suppress noisy zmosh output during kill; only show the picker's own status message
+
 ## v1.1.0
 
 - **Kill mode returns to menu** — after killing a session (or cancelling), you stay in the picker with a refreshed session list instead of dropping back to the shell

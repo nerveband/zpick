@@ -84,9 +84,7 @@ func AttachInDir(name, dir string) error {
 }
 
 // Kill runs `zmosh kill <name>`.
+// Output is suppressed; the picker displays its own status message.
 func Kill(name string) error {
-	cmd := exec.Command("zmosh", "kill", name)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return exec.Command("zmosh", "kill", name).Run()
 }
