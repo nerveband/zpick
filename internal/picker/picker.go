@@ -55,8 +55,12 @@ func Run() error {
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return nil
 	}
-	// Guard: skip if zmosh not found
+	// Guard: if zmosh not found, show install guidance
 	if _, err := exec.LookPath("zmosh"); err != nil {
+		fmt.Fprintf(os.Stderr, "\n  %szmosh-picker:%s zmosh not found\n", boldCyan, reset)
+		fmt.Fprintf(os.Stderr, "  %sInstall:%s brew install mmonad/tap/zmosh\n", dim, reset)
+		fmt.Fprintf(os.Stderr, "  %sMore info:%s https://github.com/mmonad/zmosh\n", dim, reset)
+		fmt.Fprintf(os.Stderr, "  %sRun 'zmosh-picker check' for full dependency status%s\n\n", dim, reset)
 		return nil
 	}
 
