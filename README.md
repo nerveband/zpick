@@ -1,6 +1,6 @@
 # zmosh-picker
 
-Single-keypress session launcher for [zmosh](https://github.com/mmonad/zmosh). Open a terminal, see your sessions, press one key.
+Session launcher for [zmosh](https://github.com/mmonad/zmosh). One keypress to resume any session.
 
 <p align="center">
   <img src="assets/screenshot.svg" alt="zmosh-picker in action" width="680">
@@ -8,22 +8,22 @@ Single-keypress session launcher for [zmosh](https://github.com/mmonad/zmosh). O
 
 ## Why
 
-Persistent sessions should be the default, not something you opt into. Whether you're on your Mac, SSH'd from an iPad, or mosh'd from your phone — you should be able to pick up any session instantly.
+I kept losing context. SSH from my phone, open a terminal, forget what I named that session, type it wrong, give up. Open a new tab on my Mac, start fresh instead of picking up where I left off. Repeat.
 
-**The problem:** Every time you open a terminal, you start fresh. Your previous context is gone. On mobile, typing `zmosh attach my-long-session-name` is painful. Across devices, you forget what sessions exist.
+So I built this: every terminal opens with a list of your sessions. Press `1` to pick up where you left off. That's it.
 
-**The solution:** Every terminal opens with a single-keypress picker. Press `1` to resume. Press `Enter` to start fresh. Press `z` to jump to any project. One keypress, every time, on any device.
+It also handles starting new sessions — `Enter` creates one named after your current directory, `z` lets you jump to any project via zoxide first. But mostly it's about making session handoff a reflex instead of a chore.
 
 ## Dependencies
 
-| Dependency | Required | Purpose |
+| Dependency | Required | What it does |
 |-----------|----------|---------|
-| [zmosh](https://github.com/mmonad/zmosh) | **Yes** | Session persistence (fork of [zmx](https://github.com/neurosnap/zmx) with UDP remote support) |
-| [zoxide](https://github.com/ajeetdsouza/zoxide) | No | Interactive directory picker (for `z` key) |
-| [fzf](https://github.com/junegunn/fzf) | No | Fuzzy finder (used by zoxide's interactive mode) |
+| [zmosh](https://github.com/mmonad/zmosh) | **Yes** | Session persistence (fork of [zmx](https://github.com/neurosnap/zmx)) |
+| [zoxide](https://github.com/ajeetdsouza/zoxide) | No | Directory picker for the `z` key |
+| [fzf](https://github.com/junegunn/fzf) | No | Fuzzy finder, used by zoxide |
 
 ```bash
-# Install dependencies (macOS)
+# macOS
 brew install mmonad/tap/zmosh
 brew install zoxide    # optional
 brew install fzf       # optional, used by zoxide
@@ -37,16 +37,11 @@ cd zmosh-picker
 ./install.sh
 ```
 
-The install script will:
-- Check for dependencies and warn about anything missing
-- Copy `zmosh-picker` to `~/.local/bin/`
-- Add a source hook to your `~/.zshrc` (placed before p10k instant prompt if present)
+The install script checks for dependencies, copies the script to `~/.local/bin/`, and adds a source hook to `~/.zshrc`. If you use Powerlevel10k, it places the hook before instant prompt so the picker can actually read keyboard input.
 
-Then open a new terminal.
+Open a new terminal and you should see it.
 
 ## Usage
-
-Every new terminal shows the picker:
 
 ```
   zmosh 3 sessions
@@ -63,18 +58,18 @@ Every new terminal shows the picker:
 
 ### Keys
 
-| Key | Action |
+| Key | What happens |
 |-----|--------|
-| `1`-`9` | Attach to listed session |
-| `a`-`y` | Attach to sessions 10+ |
+| `1`-`9` | Attach to that session |
+| `a`-`y` | Sessions 10+ |
 | `Enter` | New session in current directory |
-| `z` | Pick directory with zoxide, then new session |
-| `d` | New session with date suffix (MMDD) |
-| `Esc` | Skip — plain shell, no zmosh |
+| `z` | Pick a directory with zoxide, then new session there |
+| `d` | New session with today's date as suffix |
+| `Esc` | Skip, just give me a normal shell |
 
-All keys are single-press. No typing, no Enter to confirm.
+Everything is single-press. No typing names, no confirming.
 
-### Session naming
+### Session names
 
 | Key | Format | Example |
 |-----|--------|---------|
@@ -82,46 +77,33 @@ All keys are single-press. No typing, no Enter to confirm.
 | `d` | `<dirname>-MMDD` | `api-server-0220` |
 | `z` | `<picked-dir>-<N>` | `ai-happy-design-1` |
 
-The counter auto-increments past existing sessions.
+Counter auto-increments past existing sessions.
 
-### Session indicators
+### The `*` and `.` indicators
 
-- `*` (green) — session has active clients (someone's connected)
-- `.` (dim) — session is idle (pick it up from another device!)
+`*` (green) means someone is connected to that session right now. Probably you, on another device. `.` means it's idle — pick it up.
 
 ## How it works
 
-1. The `.zshrc` hook sources `zmosh-picker` before p10k instant prompt
-2. The script calls `zmosh list` once to get active sessions
-3. Displays a compact menu with color-coded keys
-4. Reads a single keypress with `read -k1`
-5. On selection, `exec zmosh attach <name>` replaces the shell — no wrapper process
+The `.zshrc` hook sources the script before p10k instant prompt. It calls `zmosh list` once, builds the menu, waits for one keypress, then runs `exec zmosh attach <name>` which replaces the shell process entirely. The rest of `.zshrc` never runs — so resuming a session is actually faster than a normal shell startup.
 
-If you pick a session, the rest of `.zshrc` is skipped entirely (the `exec` replaces the process). This actually makes session resumption *faster* than a normal shell startup.
+The picker skips itself when you're already inside a zmosh session, in a non-interactive shell, or when stdin isn't a terminal.
 
-### Guards
+## Works on narrow screens
 
-The picker silently skips when:
-- Already inside a zmosh session (`$ZMX_SESSION` is set)
-- Not an interactive shell
-- stdin is not a terminal (piped input)
-- `zmosh` is not installed
-
-## Mobile-friendly design
-
-The compact layout fits narrow screens (30+ char width). Action keys are stacked on two lines instead of one long row. Session names are not padded. Everything is designed so you can SSH from Blink Shell or Termius on your phone, see your sessions, and press one key.
+The layout fits ~30 character widths. Action keys are stacked on two lines. No padding on session names. I built this mostly so I could SSH from my phone (Blink Shell) and not hate the experience.
 
 ## Related projects
 
-- [zmosh](https://github.com/mmonad/zmosh) — Session persistence with encrypted UDP auto-reconnect
-- [zmx](https://github.com/neurosnap/zmx) — The original session persistence tool zmosh is built on
-- [zmx-session-manager](https://github.com/mdsakalu/zmx-session-manager) — TUI session manager for zmx/zmosh (Bubble Tea)
-- [zoxide](https://github.com/ajeetdsouza/zoxide) — Smarter `cd` command with frecency-based directory jumping
-- [fzf](https://github.com/junegunn/fzf) — Fuzzy finder used by zoxide's interactive mode
+- [zmosh](https://github.com/mmonad/zmosh) — Session persistence with UDP remote support
+- [zmx](https://github.com/neurosnap/zmx) — The session persistence tool zmosh is forked from
+- [zmx-session-manager](https://github.com/mdsakalu/zmx-session-manager) — TUI session manager for zmx/zmosh
+- [zoxide](https://github.com/ajeetdsouza/zoxide) — Frecency-based `cd` replacement
+- [fzf](https://github.com/junegunn/fzf) — Fuzzy finder
 
-## Design decisions
+## Design
 
-See [docs/plans/2026-02-20-zmosh-picker-design.md](docs/plans/2026-02-20-zmosh-picker-design.md) for the full design rationale.
+See [docs/plans/2026-02-20-zmosh-picker-design.md](docs/plans/2026-02-20-zmosh-picker-design.md) for the full rationale.
 
 ## Uninstall
 
