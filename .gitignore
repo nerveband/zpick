@@ -2,5 +2,7 @@
 .worktrees/
 
 # Go build output
+/zmosh-picker
 /zmosh-picker-go
 *.exe
+/dist/
