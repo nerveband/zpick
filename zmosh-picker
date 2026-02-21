@@ -56,11 +56,17 @@ while IFS= read -r line; do
   session_names+=("$name")
   session_clients+=("$clients")
   # Shorten dir: replace $HOME with ~
+  local is_home=0
+  [[ "$dir" == "$HOME"* ]] && is_home=1
   dir="${dir/$HOME/~}"
   # Truncate to last 3 path segments if long
   local parts=(${(s:/:)dir})
   if (( ${#parts} > 4 )); then
-    dir="~/${parts[-3]}/${parts[-2]}/${parts[-1]}"
+    if (( is_home )); then
+      dir="~/${parts[-3]}/${parts[-2]}/${parts[-1]}"
+    else
+      dir=".../${parts[-3]}/${parts[-2]}/${parts[-1]}"
+    fi
   fi
   session_dirs+=("$dir")
 done < <(zmosh list 2>/dev/null)
