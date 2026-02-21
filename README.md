@@ -8,11 +8,13 @@ Session launcher for [zmosh](https://github.com/mmonad/zmosh). One keypress to r
 
 ## Why
 
-I kept losing context. SSH from my phone, open a terminal, forget what I named that session, type it wrong, give up. Open a new tab on my Mac, start fresh instead of picking up where I left off. Repeat.
+The idea is simple: if every terminal on your Mac starts inside a zmosh session, then every session is always there waiting for you when you pick up your phone.
 
-So I built this: every terminal opens with a list of your sessions. Press `1` to pick up where you left off. That's it.
+I SSH from my phone a lot. The annoying part was never the SSH itself — it was arriving on the remote machine and not knowing what sessions exist, or having to type `zmosh attach some-long-name` on a phone keyboard. Half the time I'd just start fresh and lose whatever I was working on.
 
-It also handles starting new sessions — `Enter` creates one named after your current directory, `z` lets you jump to any project via zoxide first. But mostly it's about making session handoff a reflex instead of a chore.
+So I made this run on every terminal. Now my Mac is constantly creating and resuming named sessions without me thinking about it. When I SSH from my phone later, those sessions are right there. Press `1`. Done.
+
+It also handles new sessions — `Enter` creates one named after your current directory, `z` lets you pick a project via zoxide first. But the real point is: your Mac does the work of keeping sessions alive, and your phone just picks them up.
 
 ## Dependencies
 
