@@ -1,106 +1,73 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" width="720" height="420">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" width="720" height="400">
   <defs>
     <style>
-      @keyframes content-fade {
-        0%, 100% { opacity: 0; }
-        8.33%, 91.66% { opacity: 1; }
-      }
-      @keyframes blink {
-        0%, 8.33% { opacity: 1; }
-        8.34%, 16.66% { opacity: 0; }
-        16.67%, 25.00% { opacity: 1; }
-        25.01%, 33.33% { opacity: 0; }
-        33.34%, 41.66% { opacity: 1; }
-        41.67%, 100% { opacity: 0; }
-      }
-      @keyframes prompt-initial {
-        0%, 49.99% { opacity: 1; }
-        50%, 100% { opacity: 0; }
-      }
-      @keyframes prompt-typed {
-        0%, 49.99% { opacity: 0; }
-        50%, 100% { opacity: 1; }
-      }
-      @keyframes new-line {
-        0%, 53.33% { opacity: 0; }
-        66.66%, 100% { opacity: 1; }
-      }
-      .content { animation: content-fade 6s infinite; }
-      .blink { animation: blink 6s infinite; }
-      .prompt-initial { animation: prompt-initial 6s infinite; }
-      .prompt-typed { animation: prompt-typed 6s infinite; }
-      .new-line { animation: new-line 6s infinite; }
       text { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
     </style>
   </defs>
 
-  <rect width="720" height="420" rx="10" fill="#1a1b26"/>
+  <rect width="720" height="400" rx="10" fill="#1a1b26"/>
   <path d="M 0 10 A 10 10 0 0 1 10 0 L 710 0 A 10 10 0 0 1 720 10 L 720 40 L 0 40 Z" fill="#24283b"/>
-  
+
   <circle cx="20" cy="20" r="6" fill="#ff5f56"/>
   <circle cx="40" cy="20" r="6" fill="#ffbd2e"/>
   <circle cx="60" cy="20" r="6" fill="#27c93f"/>
-  
+
   <text x="360" y="25" text-anchor="middle" fill="#a9b1d6" font-size="13">zmosh-picker</text>
 
-  <g class="content" font-size="15" xml:space="preserve">
-    <text x="40" y="92">
+  <g font-size="15" xml:space="preserve">
+    <text x="40" y="80">
       <tspan fill="#7dcfff" font-weight="bold">zmosh</tspan>
       <tspan fill="#565f89"> 3 sessions</tspan>
     </text>
 
-    <text y="140">
+    <text y="120">
       <tspan x="40" fill="#e0af68" font-weight="bold">1</tspan>
       <tspan x="70" fill="#c0caf5" font-weight="bold">api-server</tspan>
       <tspan x="220" fill="#9ece6a" font-weight="bold">*</tspan>
       <tspan x="240" fill="#565f89">~/projects/api</tspan>
     </text>
 
-    <text y="164">
+    <text y="144">
       <tspan x="40" fill="#e0af68">2</tspan>
       <tspan x="70" fill="#c0caf5">dotfiles</tspan>
       <tspan x="220" fill="#565f89">.</tspan>
       <tspan x="240" fill="#565f89">~/dotfiles</tspan>
     </text>
 
-    <text y="188">
+    <text y="168">
       <tspan x="40" fill="#e0af68">3</tspan>
       <tspan x="70" fill="#c0caf5">ai-happy-design</tspan>
       <tspan x="220" fill="#565f89">.</tspan>
       <tspan x="240" fill="#565f89">~/Doc/GH</tspan>
     </text>
 
-    <text x="40" y="236">
+    <text x="40" y="210">
       <tspan fill="#9ece6a" font-weight="bold">enter</tspan>
       <tspan fill="#565f89"> new </tspan>
       <tspan fill="#c0caf5" font-weight="bold">myproject-1</tspan>
     </text>
 
-    <text x="40" y="260">
+    <text x="40" y="234">
       <tspan fill="#bb9af7">z</tspan>
-      <tspan fill="#565f89">     pick dir  </tspan>
+      <tspan fill="#565f89"> pick dir  </tspan>
       <tspan fill="#7dcfff">d</tspan>
       <tspan fill="#565f89"> +date  </tspan>
+      <tspan fill="#f7768e">k</tspan>
+      <tspan fill="#565f89"> kill  </tspan>
       <tspan fill="#e0af68" font-weight="bold">esc</tspan>
       <tspan fill="#565f89"> skip</tspan>
     </text>
 
-    <text x="40" y="308" class="prompt-initial">
-      <tspan fill="#7dcfff" font-weight="bold">&gt; </tspan>
-      <tspan fill="#565f89" class="blink">_</tspan>
-    </text>
-
-    <text x="40" y="308" class="prompt-typed">
+    <text x="40" y="278">
       <tspan fill="#7dcfff" font-weight="bold">&gt; </tspan>
       <tspan fill="#c0caf5">1</tspan>
-      <tspan fill="#565f89">_</tspan>
     </text>
 
-    <text x="40" y="332" class="new-line">
+    <text x="40" y="302">
       <tspan fill="#9ece6a" font-weight="bold">&gt; </tspan>
       <tspan fill="#c0caf5" font-weight="bold">api-server</tspan>
     </text>
 
-    <text x="360" y="390" text-anchor="middle" fill="#565f89" font-size="12">single keypress. every terminal. any device.</text>
+    <text x="360" y="375" text-anchor="middle" fill="#565f89" font-size="12">single keypress. every terminal. any device.</text>
   </g>
 </svg>
