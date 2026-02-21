@@ -5,9 +5,10 @@
 _zmosh_picker_main() {
   # ─── Guards ─────────────────────────────────────────────────────────
   [[ ! -o interactive ]] && return 0
-  [[ -n "$ZMX_SESSION" ]] && return 0
+  [[ -n "$ZMX_SESSION" && -z "$ZPICK" ]] && return 0
   [[ ! -t 0 ]] && return 0
   command -v zmosh &>/dev/null || return 0
+  unset ZPICK
 
   # ─── Colors ─────────────────────────────────────────────────────────
 

@@ -104,6 +104,16 @@ else
   esac
 fi
 
+# ─── Add zpick alias ─────────────────────────────────────────────────
+
+if grep -qF 'alias zpick' ~/.zshrc 2>/dev/null; then
+  echo "zpick alias already present in ~/.zshrc"
+else
+  echo 'alias zpick="ZPICK=1 source $HOME/.local/bin/zmosh-picker"' >> ~/.zshrc
+  echo "Added 'zpick' alias to ~/.zshrc"
+fi
+
 echo ""
 echo "Done! Open a new terminal to try it."
+echo "You can also run 'zpick' from any shell to bring up the picker."
 echo ""

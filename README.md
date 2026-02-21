@@ -91,6 +91,10 @@ The `.zshrc` hook sources the script before p10k instant prompt. It calls `zmosh
 
 The picker skips itself when you're already inside a zmosh session, in a non-interactive shell, or when stdin isn't a terminal.
 
+### `zpick`
+
+If you're already inside a session and want to switch, type `zpick`. It brings up the same picker, lets you pick a session, and attaches to it. The install script adds this alias automatically.
+
 ## Works on narrow screens
 
 The layout fits ~30 character widths. Action keys are stacked on two lines. No padding on session names. I built this mostly so I could SSH from my phone (Echo) and not hate the experience.

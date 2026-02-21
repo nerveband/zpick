@@ -12,7 +12,8 @@ if [[ -f ~/.zshrc ]]; then
   sed -i '' '/# zmosh-picker:/d' ~/.zshrc
   sed -i '' '/source.*zmosh-picker/d' ~/.zshrc
   sed -i '' '/_zmosh_picker_once/d' ~/.zshrc
-  echo "Removed hook from ~/.zshrc"
+  sed -i '' '/alias zpick/d' ~/.zshrc
+  echo "Removed hook and zpick alias from ~/.zshrc"
 fi
 
 echo "Done. zmosh-picker has been uninstalled."
