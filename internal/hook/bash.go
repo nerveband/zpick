@@ -17,6 +17,7 @@ func installBash() error {
 	// Idempotency: don't add twice
 	if hasHook(path) {
 		fmt.Printf("  hook already installed in %s\n", path)
+		appendTermFix(path)
 		return nil
 	}
 
@@ -32,5 +33,6 @@ func installBash() error {
 	}
 
 	fmt.Printf("  installed hook in %s\n", path)
+	appendTermFix(path)
 	return nil
 }

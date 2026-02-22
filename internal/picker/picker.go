@@ -166,6 +166,7 @@ func showPicker(tty *os.File, sessions []zmosh.Session) (Action, error) {
 	if err != nil {
 		return Action{}, fmt.Errorf("failed to set raw mode: %w", err)
 	}
+	defer term.Restore(int(tty.Fd()), oldState)
 
 	buf := make([]byte, 3)
 	n, err := tty.Read(buf)
@@ -218,6 +219,7 @@ func enterKillMode(tty *os.File, sessions []zmosh.Session) (Action, error) {
 	if err != nil {
 		return Action{}, err
 	}
+	defer term.Restore(int(tty.Fd()), oldState)
 
 	buf := make([]byte, 3)
 	n, _ := tty.Read(buf)
@@ -248,6 +250,7 @@ func confirmAndKill(tty *os.File, name string) error {
 	if err != nil {
 		return err
 	}
+	defer term.Restore(int(tty.Fd()), oldState)
 
 	buf := make([]byte, 1)
 	tty.Read(buf)
@@ -286,6 +289,7 @@ func handleCustom(tty *os.File, sessions []zmosh.Session) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer term.Restore(int(tty.Fd()), oldState)
 
 	buf := make([]byte, 3)
 	n, _ := tty.Read(buf)
