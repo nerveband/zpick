@@ -169,7 +169,7 @@ func (r Result) PrintGuide() bool {
 	if missing {
 		fmt.Println("\n  \033[1;31mRequired dependencies missing.\033[0m Install them and run again.")
 	} else {
-		fmt.Println("\n  \033[32mAll set!\033[0m Run 'zmosh-picker install-hook' to add the shell hook.")
+		fmt.Println("\n  \033[32mAll set!\033[0m Run 'zpick install-hook' to add the shell hook.")
 	}
 
 	return missing

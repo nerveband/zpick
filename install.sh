@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# zmosh-picker installer
+# zpick installer
 # Downloads pre-built binary from GitHub releases, or builds from source.
 
-REPO="nerveband/zmosh-picker"
+REPO="nerveband/zpick"
 INSTALL_DIR="${HOME}/.local/bin"
 
 echo ""
-echo "Installing zmosh-picker..."
+echo "Installing zpick..."
 echo ""
 
 # ─── Detect platform ─────────────────────────────────────────────────
@@ -36,13 +36,13 @@ if command -v curl &>/dev/null; then
   TAG=$(curl -fsSL "$LATEST_URL" 2>/dev/null | grep '"tag_name"' | head -1 | cut -d'"' -f4 || true)
 
   if [[ -n "$TAG" ]]; then
-    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/zmosh-picker_${TAG#v}_${OS}_${ARCH}.tar.gz"
+    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/zpick_${TAG#v}_${OS}_${ARCH}.tar.gz"
     echo "  Downloading ${TAG}..."
 
-    if curl -fsSL "$DOWNLOAD_URL" | tar xz -C "$INSTALL_DIR" zmosh-picker 2>/dev/null; then
-      chmod +x "$INSTALL_DIR/zmosh-picker"
-      echo "  Installed zmosh-picker ${TAG} to ${INSTALL_DIR}/zmosh-picker"
-      "$INSTALL_DIR/zmosh-picker" install-hook
+    if curl -fsSL "$DOWNLOAD_URL" | tar xz -C "$INSTALL_DIR" zpick 2>/dev/null; then
+      chmod +x "$INSTALL_DIR/zpick"
+      echo "  Installed zpick ${TAG} to ${INSTALL_DIR}/zpick"
+      "$INSTALL_DIR/zpick" install-hook
       echo ""
       echo "Done! Open a new terminal to try it."
       exit 0
@@ -55,13 +55,13 @@ fi
 
 if command -v go &>/dev/null; then
   echo "  Building from source..."
-  go install "github.com/${REPO}/cmd/zmosh-picker@latest"
+  go install "github.com/${REPO}/cmd/zpick@latest"
   echo "  Installed via go install"
 
   # Ensure GOBIN is in PATH
   GOBIN="$(go env GOPATH)/bin"
-  if [[ -f "$GOBIN/zmosh-picker" ]]; then
-    "$GOBIN/zmosh-picker" install-hook
+  if [[ -f "$GOBIN/zpick" ]]; then
+    "$GOBIN/zpick" install-hook
   fi
   echo ""
   echo "Done! Open a new terminal to try it."
@@ -74,9 +74,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [[ -f "$SCRIPT_DIR/go.mod" ]]; then
   echo "  Building from local source..."
   cd "$SCRIPT_DIR"
-  go build -o "$INSTALL_DIR/zmosh-picker" ./cmd/zmosh-picker
-  chmod +x "$INSTALL_DIR/zmosh-picker"
-  "$INSTALL_DIR/zmosh-picker" install-hook
+  go build -o "$INSTALL_DIR/zpick" ./cmd/zpick
+  chmod +x "$INSTALL_DIR/zpick"
+  "$INSTALL_DIR/zpick" install-hook
   echo ""
   echo "Done! Open a new terminal to try it."
   exit 0

@@ -14,8 +14,8 @@ import (
 
 const (
 	repoOwner = "nerveband"
-	repoName  = "zmosh-picker"
-	configDir = ".zmosh-picker"
+	repoName  = "zpick"
+	configDir = ".zpick"
 	cacheFile = "update_cache.json"
 )
 
@@ -160,7 +160,7 @@ func FormatNotice(result CheckResult) string {
 	if result.Err != nil || !result.HasUpdate {
 		return ""
 	}
-	return fmt.Sprintf("\nUpdate available: %s\nRun 'zmosh-picker upgrade' to update\n\n", result.LatestVersion)
+	return fmt.Sprintf("\nUpdate available: %s\nRun 'zpick upgrade' to update\n\n", result.LatestVersion)
 }
 
 func cachePath() string {

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/nerveband/zmosh-picker/internal/update"
+	"github.com/nerveband/zpick/internal/update"
 )
 
 func runUpgrade() error {

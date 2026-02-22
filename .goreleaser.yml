@@ -1,8 +1,8 @@
 version: 2
 
 builds:
-  - main: ./cmd/zmosh-picker
-    binary: zmosh-picker
+  - main: ./cmd/zpick
+    binary: zpick
     ldflags:
       - -s -w -X main.version={{.Version}}
     goos:

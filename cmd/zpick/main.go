@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nerveband/zmosh-picker/internal/update"
+	"github.com/nerveband/zpick/internal/update"
 )
 
 var version = "dev"
@@ -13,7 +13,7 @@ func main() {
 	if len(os.Args) < 2 {
 		// Default: interactive picker
 		if err := runPicker(); err != nil {
-			fmt.Fprintf(os.Stderr, "zmosh-picker: %v\n", err)
+			fmt.Fprintf(os.Stderr, "zpick: %v\n", err)
 			os.Exit(1)
 		}
 		return
@@ -29,48 +29,48 @@ func main() {
 	switch os.Args[1] {
 	case "list":
 		if err := runList(); err != nil {
-			fmt.Fprintf(os.Stderr, "zmosh-picker: %v\n", err)
+			fmt.Fprintf(os.Stderr, "zpick: %v\n", err)
 			os.Exit(1)
 		}
 	case "check":
 		if err := runCheck(); err != nil {
-			fmt.Fprintf(os.Stderr, "zmosh-picker: %v\n", err)
+			fmt.Fprintf(os.Stderr, "zpick: %v\n", err)
 			os.Exit(1)
 		}
 	case "attach":
 		if len(os.Args) < 3 {
-			fmt.Fprintln(os.Stderr, "usage: zmosh-picker attach <name> [--dir <path>]")
+			fmt.Fprintln(os.Stderr, "usage: zpick attach <name> [--dir <path>]")
 			os.Exit(1)
 		}
 		if err := runAttach(os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "zmosh-picker: %v\n", err)
+			fmt.Fprintf(os.Stderr, "zpick: %v\n", err)
 			os.Exit(1)
 		}
 	case "kill":
 		if len(os.Args) < 3 {
-			fmt.Fprintln(os.Stderr, "usage: zmosh-picker kill <name>")
+			fmt.Fprintln(os.Stderr, "usage: zpick kill <name>")
 			os.Exit(1)
 		}
 		if err := runKill(os.Args[2]); err != nil {
-			fmt.Fprintf(os.Stderr, "zmosh-picker: %v\n", err)
+			fmt.Fprintf(os.Stderr, "zpick: %v\n", err)
 			os.Exit(1)
 		}
 	case "install-hook":
 		if err := runInstallHook(); err != nil {
-			fmt.Fprintf(os.Stderr, "zmosh-picker: %v\n", err)
+			fmt.Fprintf(os.Stderr, "zpick: %v\n", err)
 			os.Exit(1)
 		}
 	case "upgrade":
 		if err := runUpgrade(); err != nil {
-			fmt.Fprintf(os.Stderr, "zmosh-picker: %v\n", err)
+			fmt.Fprintf(os.Stderr, "zpick: %v\n", err)
 			os.Exit(1)
 		}
 	case "version":
-		fmt.Printf("zmosh-picker %s\n", version)
+		fmt.Printf("zpick %s\n", version)
 	case "--help", "-h", "help":
 		printUsage()
 	default:
-		fmt.Fprintf(os.Stderr, "zmosh-picker: unknown command %q\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "zpick: unknown command %q\n", os.Args[1])
 		printUsage()
 		os.Exit(1)
 	}
@@ -105,15 +105,15 @@ func shouldCheckUpdates(args []string) bool {
 }
 
 func printUsage() {
-	fmt.Println(`zmosh-picker — session launcher for zmosh
+	fmt.Println(`zpick — session launcher for zmosh
 
 Usage:
-  zmosh-picker              Interactive TUI picker (default)
-  zmosh-picker list         List sessions (--json for machine-readable)
-  zmosh-picker check        Check dependencies (--json for machine-readable)
-  zmosh-picker attach <n>   Attach or create session
-  zmosh-picker kill <name>  Kill a session
-  zmosh-picker install-hook Add shell hook to .zshrc/.bashrc
-  zmosh-picker upgrade      Upgrade to the latest version
-  zmosh-picker version      Print version`)
+  zpick              Interactive TUI picker (default)
+  zpick list         List sessions (--json for machine-readable)
+  zpick check        Check dependencies (--json for machine-readable)
+  zpick attach <n>   Attach or create session
+  zpick kill <name>  Kill a session
+  zpick install-hook Add shell hook to .zshrc/.bashrc
+  zpick upgrade      Upgrade to the latest version
+  zpick version      Print version`)
 }

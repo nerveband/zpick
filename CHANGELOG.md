@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.0.0
+
+- **Renamed to zpick** — binary, module, config dir all renamed from `zmosh-picker` to `zpick`
+- **Eval refactor** — TUI renders to `/dev/tty`, only the final shell command goes to stdout. Hook becomes `eval "$(zpick)"`. Fixes shell lifecycle: when zmosh session ends, the terminal closes properly instead of dropping to an outer shell.
+- **Script-friendly** — `zpick install-hook` auto-detects your shell (zsh/bash) and adds the hook. `zpick | cat` outputs only the command string.
+
 ## v1.1.1
 
 - **Cleaner kill output** — suppress noisy zmosh output during kill; only show the picker's own status message
@@ -14,4 +20,3 @@
 
 - Initial release: single-keypress session picker for zmosh
 - Kill mode (`k`), zoxide integration (`z`), date suffix (`d`)
-- `zpick` command to bring up picker from any shell

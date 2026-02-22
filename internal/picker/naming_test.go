@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerveband/zmosh-picker/internal/zmosh"
+	"github.com/nerveband/zpick/internal/zmosh"
 )
 
 func TestCounterName_NoConflict(t *testing.T) {

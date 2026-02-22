@@ -6,8 +6,8 @@
 - Do not run update-check logic for machine-consumed `--json` calls.
 - Keep async update checks enabled for interactive mode only, so machine callers (`zsync`) avoid unnecessary background work.
 - Preserve output contracts for:
-  - `zmosh-picker list --json`
-  - `zmosh-picker check --json`
+  - `zpick list --json`
+  - `zpick check --json`
 
 ## Integration Rules (zsync dependency)
 
@@ -18,4 +18,4 @@
 ## Validation Commands
 
 - `go test ./...`
-- `go build -o zmosh-picker ./cmd/zmosh-picker`
+- `go build -o zpick ./cmd/zpick`

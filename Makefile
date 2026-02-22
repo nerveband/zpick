@@ -4,16 +4,16 @@ LDFLAGS = -ldflags "-X main.version=$(VERSION)"
 .PHONY: build test install clean
 
 build:
-	go build $(LDFLAGS) -o zmosh-picker ./cmd/zmosh-picker
+	go build $(LDFLAGS) -o zpick ./cmd/zpick
 
 test:
 	go test ./... -v
 
 install: build
-	cp zmosh-picker $(HOME)/.local/bin/
+	cp zpick $(HOME)/.local/bin/
 
 clean:
-	rm -f zmosh-picker
+	rm -f zpick
 
 vet:
 	go vet ./...

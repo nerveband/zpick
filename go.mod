@@ -1,4 +1,4 @@
-module github.com/nerveband/zmosh-picker
+module github.com/nerveband/zpick
 
 go 1.25.5
 

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/nerveband/zmosh-picker/internal/zmosh"
+	"github.com/nerveband/zpick/internal/zmosh"
 )
 
 func runAttach(args []string) error {

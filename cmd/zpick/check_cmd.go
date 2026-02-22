@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nerveband/zmosh-picker/internal/check"
+	"github.com/nerveband/zpick/internal/check"
 )
 
 func runCheck() error {

@@ -1,9 +1,9 @@
-# zmosh-picker
+# zpick
 
 Session launcher for [zmosh](https://github.com/mmonad/zmosh). One keypress to resume any session.
 
 <p align="center">
-  <img src="assets/screenshot.svg" alt="zmosh-picker in action" width="680">
+  <img src="assets/screenshot.svg" alt="zpick in action" width="680">
 </p>
 
 ## Why
@@ -36,46 +36,55 @@ brew install fzf       # optional, used by zoxide
 ### From source (Go 1.22+)
 
 ```bash
-go install github.com/nerveband/zmosh-picker/cmd/zmosh-picker@latest
+go install github.com/nerveband/zpick/cmd/zpick@latest
 ```
 
 ### From GitHub releases
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nerveband/zmosh-picker/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/nerveband/zpick/main/install.sh | bash
 ```
 
 ### Build from source
 
 ```bash
-git clone https://github.com/nerveband/zmosh-picker.git
-cd zmosh-picker
+git clone https://github.com/nerveband/zpick.git
+cd zpick
 make install
 ```
 
 ### Add the shell hook
 
 ```bash
-zmosh-picker install-hook
+zpick install-hook
 ```
 
-This adds the hook line to your `.zshrc` (or `.bashrc`). If you use Powerlevel10k, it places the hook before instant prompt so the picker can read keyboard input.
+This auto-detects your shell (zsh or bash) and adds the hook line to your `.zshrc` or `.bashrc`. If you use Powerlevel10k, it places the hook before instant prompt so the picker can read keyboard input.
 
 Open a new terminal and you should see it.
+
+#### Manual hook setup
+
+If you prefer to add the hook manually, add this to your shell config:
+
+```bash
+# zpick: session launcher
+[[ -z "$ZMX_SESSION" ]] && command -v zpick &>/dev/null && eval "$(zpick)"
+```
 
 ## CLI
 
 ```
-zmosh-picker              Interactive TUI picker (default)
-zmosh-picker list         List sessions (human-readable)
-zmosh-picker list --json  List sessions (JSON for scripts/zsync)
-zmosh-picker check        Check dependencies
-zmosh-picker check --json Machine-readable dependency check
-zmosh-picker attach <n>   Attach or create session
-zmosh-picker kill <name>  Kill a session
-zmosh-picker install-hook Add shell hook to .zshrc/.bashrc
-zmosh-picker upgrade      Upgrade to the latest version
-zmosh-picker version      Print version
+zpick              Interactive TUI picker (default)
+zpick list         List sessions (human-readable)
+zpick list --json  List sessions (JSON for scripts)
+zpick check        Check dependencies
+zpick check --json Machine-readable dependency check
+zpick attach <n>   Attach or create session
+zpick kill <name>  Kill a session
+zpick install-hook Add shell hook to .zshrc/.bashrc
+zpick upgrade      Upgrade to the latest version
+zpick version      Print version
 ```
 
 ### `list --json` output
@@ -108,6 +117,14 @@ zmosh-picker version      Print version
   "arch": "arm64"
 }
 ```
+
+## How it works
+
+The TUI renders to `/dev/tty` so it works even when stdout is piped. Only the final shell command goes to stdout, which the hook `eval`s. This means:
+
+- `eval "$(zpick)"` — TUI appears, selecting a session runs `exec zmosh attach <name>`
+- Press Escape — empty output, shell prompt returns normally
+- `zpick | cat` — only the command string appears, TUI still renders on the terminal
 
 ## Usage
 
@@ -154,23 +171,17 @@ First session gets the bare name. Counter starts at `-2` only when a conflict ex
 
 `*` (green) means someone is connected to that session right now. Probably you, on another device. `.` means it's idle — pick it up.
 
-## How it works
-
-The `.zshrc` hook runs the binary before the rest of your shell config. It calls `zmosh list` once, builds the menu, waits for one keypress, then runs `exec zmosh attach <name>` which replaces the process entirely. Resuming a session is actually faster than a normal shell startup.
-
-The picker skips itself when you're already inside a zmosh session, in a non-interactive shell, or when stdin isn't a terminal.
-
 ### Killing sessions
 
 Press `k` to enter kill mode, then pick a session number to kill. You'll be asked to confirm with `y/n`. To skip confirmation:
 
 ```bash
-export ZMOSH_PICKER_NO_CONFIRM=1
+export ZPICK_NO_CONFIRM=1
 ```
 
 ## Cross-platform
 
-zmosh-picker is a Go binary that works on:
+zpick is a Go binary that works on:
 - macOS (arm64, amd64)
 - Linux (arm64, amd64)
 - zsh and bash
@@ -182,7 +193,7 @@ The layout fits ~30 character widths. Action keys are stacked on two lines. No p
 ## Uninstall
 
 ```bash
-zmosh-picker install-hook --remove
+zpick install-hook --remove
 ```
 
 ## Related projects

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/nerveband/zmosh-picker/internal/zmosh"
+	"github.com/nerveband/zpick/internal/zmosh"
 )
 
 // CounterName generates a session name like "dirname" or "dirname-N".

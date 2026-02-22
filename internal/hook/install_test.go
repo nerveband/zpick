@@ -8,11 +8,14 @@ import (
 )
 
 func TestHookLineContent(t *testing.T) {
-	if !strings.Contains(hookLine, "zmosh-picker") {
-		t.Error("hook line should contain zmosh-picker")
+	if !strings.Contains(hookLine, "zpick") {
+		t.Error("hook line should contain zpick")
 	}
 	if !strings.Contains(hookLine, "ZMX_SESSION") {
 		t.Error("hook line should check ZMX_SESSION")
+	}
+	if !strings.Contains(hookLine, "eval") {
+		t.Error("hook line should use eval")
 	}
 }
 

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/nerveband/zmosh-picker/internal/hook"
+	"github.com/nerveband/zpick/internal/hook"
 )
 
 func runInstallHook() error {

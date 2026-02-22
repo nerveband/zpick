@@ -7,12 +7,12 @@ import (
 	"strings"
 )
 
-const hookLine = `# zmosh-picker: session launcher
-[[ -z "$ZMX_SESSION" ]] && command -v zmosh-picker &>/dev/null && zmosh-picker`
+const hookLine = `# zpick: session launcher
+[[ -z "$ZMX_SESSION" ]] && command -v zpick &>/dev/null && eval "$(zpick)"`
 
-const hookMarker = "zmosh-picker: session launcher"
+const hookMarker = "zpick: session launcher"
 
-// Install adds the zmosh-picker hook to the appropriate shell config file.
+// Install adds the zpick hook to the appropriate shell config file.
 func Install() error {
 	shell := detectShell()
 	switch shell {
@@ -25,7 +25,7 @@ func Install() error {
 	}
 }
 
-// Remove removes the zmosh-picker hook from the shell config file.
+// Remove removes the zpick hook from the shell config file.
 func Remove() error {
 	shell := detectShell()
 	switch shell {
@@ -80,7 +80,7 @@ func removeFromFile(path string) error {
 		if skip {
 			// Skip the next non-empty line (the actual hook command)
 			skip = false
-			if strings.Contains(line, "zmosh-picker") {
+			if strings.Contains(line, "zpick") {
 				continue
 			}
 		}
