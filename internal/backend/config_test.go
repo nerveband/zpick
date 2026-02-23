@@ -10,10 +10,10 @@ func TestConfigDir(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	got := configDir()
+	got := ConfigDir()
 	want := filepath.Join(dir, "zpick")
 	if got != want {
-		t.Errorf("configDir() = %q, want %q", got, want)
+		t.Errorf("ConfigDir() = %q, want %q", got, want)
 	}
 }
 
@@ -21,10 +21,10 @@ func TestConfigDirDefault(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "")
 	home, _ := os.UserHomeDir()
 
-	got := configDir()
+	got := ConfigDir()
 	want := filepath.Join(home, ".config", "zpick")
 	if got != want {
-		t.Errorf("configDir() = %q, want %q", got, want)
+		t.Errorf("ConfigDir() = %q, want %q", got, want)
 	}
 }
 

@@ -158,7 +158,6 @@ func installShell(path string) error {
 	fmt.Fprintf(f, "%s\n", block)
 
 	fmt.Printf("  installed guard hook in %s\n", path)
-	appendTermFix(path)
 	return nil
 }
 

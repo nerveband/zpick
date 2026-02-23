@@ -95,12 +95,6 @@ func installFish() error {
 	}
 
 	fmt.Printf("  installed fish hook in %s\n", path)
-
-	// TERM fix for Ghostty
-	if isGhostty() && !hasTermFixFish(path) {
-		appendTermFixFish(path)
-	}
-
 	return nil
 }
 

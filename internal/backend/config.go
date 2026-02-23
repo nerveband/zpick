@@ -11,8 +11,8 @@ import (
 // validBackends is the list of recognized backend names.
 var validBackends = []string{"zmosh", "zmx", "tmux", "shpool"}
 
-// configDir returns the zpick config directory, respecting XDG_CONFIG_HOME.
-func configDir() string {
+// ConfigDir returns the zpick config directory, respecting XDG_CONFIG_HOME.
+func ConfigDir() string {
 	if d := os.Getenv("XDG_CONFIG_HOME"); d != "" {
 		return filepath.Join(d, "zpick")
 	}
@@ -28,7 +28,7 @@ func ReadBackendName() (string, error) {
 // readBackendConfig reads the backend name from the config file.
 // Returns empty string if the file doesn't exist.
 func readBackendConfig() (string, error) {
-	data, err := os.ReadFile(filepath.Join(configDir(), "backend"))
+	data, err := os.ReadFile(filepath.Join(ConfigDir(), "backend"))
 	if os.IsNotExist(err) {
 		return "", nil
 	}
@@ -43,7 +43,7 @@ func SetBackend(name string) error {
 	if !isValidBackend(name) {
 		return fmt.Errorf("unknown backend %q (valid: %s)", name, strings.Join(validBackends, ", "))
 	}
-	dir := configDir()
+	dir := ConfigDir()
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func SetBackend(name string) error {
 
 // SetUDP writes the zmosh UDP configuration.
 func SetUDP(enabled bool, host string) error {
-	dir := configDir()
+	dir := ConfigDir()
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func SetUDP(enabled bool, host string) error {
 // ReadUDP reads the zmosh UDP configuration.
 // Defaults: enabled=true, host="" (empty).
 func ReadUDP() (enabled bool, host string) {
-	data, err := os.ReadFile(filepath.Join(configDir(), "udp.conf"))
+	data, err := os.ReadFile(filepath.Join(ConfigDir(), "udp.conf"))
 	if err != nil {
 		return true, "" // default: enabled, no host
 	}

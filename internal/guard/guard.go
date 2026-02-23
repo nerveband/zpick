@@ -99,7 +99,7 @@ func waitForKey(tty *os.File, d time.Duration) keyAction {
 }
 
 func runPicker(tty *os.File, b backend.Backend, argv []string) (string, error) {
-	cmd, err := picker.Run(b)
+	cmd, err := picker.Run(b, "")
 	if err != nil {
 		return "", err
 	}

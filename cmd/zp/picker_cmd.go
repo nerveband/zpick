@@ -11,7 +11,7 @@ func runPicker() error {
 	if err != nil {
 		return err
 	}
-	cmd, err := picker.Run(b)
+	cmd, err := picker.Run(b, version)
 	if err != nil {
 		return err
 	}
