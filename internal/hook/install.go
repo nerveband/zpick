@@ -32,7 +32,7 @@ func GenerateHookBlock(apps []string) string {
 	// Autorun: launch saved command when entering a new zmosh session
 	b.WriteString("# Auto-run: launch saved command when entering a new zmosh session\n")
 	b.WriteString("if [[ -n \"$ZPICK_AUTORUN\" ]]; then\n")
-	b.WriteString("  zpick autorun\n")
+	b.WriteString("  command zpick autorun\n")
 	b.WriteString("  unset ZPICK_AUTORUN\n")
 	b.WriteString("fi\n")
 
@@ -40,7 +40,7 @@ func GenerateHookBlock(apps []string) string {
 	b.WriteString("_zpick_guard() {\n")
 	b.WriteString("  if [[ -z \"$ZMX_SESSION\" ]] && command -v zpick &>/dev/null; then\n")
 	b.WriteString("    local _r\n")
-	b.WriteString("    _r=$(zpick guard -- \"$@\")\n")
+	b.WriteString("    _r=$(command zpick guard -- \"$@\")\n")
 	b.WriteString("    if [[ -n \"$_r\" ]]; then eval \"$_r\"; return; fi\n")
 	b.WriteString("  fi\n")
 	b.WriteString("  command \"$@\"\n")
