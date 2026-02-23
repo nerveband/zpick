@@ -1,22 +1,62 @@
 package hook
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestHookLineContent(t *testing.T) {
-	if !strings.Contains(hookLine, "zpick") {
-		t.Error("hook line should contain zpick")
+func TestGenerateHookBlock(t *testing.T) {
+	block := GenerateHookBlock([]string{"claude", "codex", "opencode"})
+
+	if !strings.Contains(block, blockStart) {
+		t.Error("block should contain start marker")
 	}
-	if !strings.Contains(hookLine, "ZMX_SESSION") {
-		t.Error("hook line should check ZMX_SESSION")
+	if !strings.Contains(block, blockEnd) {
+		t.Error("block should contain end marker")
 	}
-	if !strings.Contains(hookLine, "eval") {
-		t.Error("hook line should use eval")
+	if !strings.Contains(block, "_zpick_guard") {
+		t.Error("block should contain guard function")
+	}
+	if !strings.Contains(block, "ZPICK_AUTORUN") {
+		t.Error("block should contain autorun check")
+	}
+	if !strings.Contains(block, `claude() { _zpick_guard claude "$@"; }`) {
+		t.Error("block should contain claude function")
+	}
+	if !strings.Contains(block, `codex() { _zpick_guard codex "$@"; }`) {
+		t.Error("block should contain codex function")
+	}
+	if !strings.Contains(block, `opencode() { _zpick_guard opencode "$@"; }`) {
+		t.Error("block should contain opencode function")
+	}
+}
+
+func TestGenerateHookBlockSkipsInvalidNames(t *testing.T) {
+	block := GenerateHookBlock([]string{"claude", "bad name", "codex"})
+
+	if !strings.Contains(block, "claude()") {
+		t.Error("valid name should be included")
+	}
+	if strings.Contains(block, "bad name") {
+		t.Error("invalid name should be skipped")
+	}
+	if !strings.Contains(block, "codex()") {
+		t.Error("valid name should be included")
+	}
+}
+
+func TestGenerateHookBlockHyphenConversion(t *testing.T) {
+	block := GenerateHookBlock([]string{"my-app"})
+
+	// Function name should use underscore
+	if !strings.Contains(block, "my_app()") {
+		t.Error("hyphen should be converted to underscore in function name")
+	}
+	// Command name should keep hyphen
+	if !strings.Contains(block, "_zpick_guard my-app") {
+		t.Error("original app name should be used in guard call")
 	}
 }
 
@@ -35,10 +75,74 @@ func TestHasHook(t *testing.T) {
 		t.Error("should return false for file without hook")
 	}
 
-	// File with hook
-	os.WriteFile(path, []byte("# some config\n"+hookLine+"\n"), 0644)
+	// File with old-style hook
+	os.WriteFile(path, []byte("# some config\n# zpick: session launcher\neval...\n"), 0644)
 	if !hasHook(path) {
-		t.Error("should return true for file with hook")
+		t.Error("should return true for file with old-style hook")
+	}
+
+	// File with new-style block
+	os.WriteFile(path, []byte("# some config\n"+blockStart+"\nstuff\n"+blockEnd+"\n"), 0644)
+	if !hasHook(path) {
+		t.Error("should return true for file with new-style block")
+	}
+}
+
+func TestRemoveBlock(t *testing.T) {
+	block := GenerateHookBlock([]string{"claude", "codex"})
+	content := "# before\n\n" + block + "\n# after\n"
+
+	result := removeBlock(content)
+
+	if strings.Contains(result, blockStart) {
+		t.Error("block start should be removed")
+	}
+	if strings.Contains(result, blockEnd) {
+		t.Error("block end should be removed")
+	}
+	if strings.Contains(result, "_zpick_guard") {
+		t.Error("guard function should be removed")
+	}
+	if !strings.Contains(result, "# before") {
+		t.Error("content before block should remain")
+	}
+	if !strings.Contains(result, "# after") {
+		t.Error("content after block should remain")
+	}
+}
+
+func TestRemoveBlockStartOnly(t *testing.T) {
+	content := "# before\n" + blockStart + "\nsome stuff\n# after\n"
+
+	result := removeBlock(content)
+
+	if strings.Contains(result, blockStart) {
+		t.Error("start marker should be removed")
+	}
+	if !strings.Contains(result, "# before") {
+		t.Error("content before should remain")
+	}
+	if !strings.Contains(result, "# after") {
+		t.Error("content after should remain")
+	}
+}
+
+func TestRemoveOldHook(t *testing.T) {
+	content := "# before\n# zpick: session launcher\n[[ -z \"$ZMX_SESSION\" ]] && command -v zpick &>/dev/null && eval \"$(zpick)\"\n# after\n"
+
+	result := removeOldHook(content)
+
+	if strings.Contains(result, hookMarker) {
+		t.Error("old hook marker should be removed")
+	}
+	if strings.Contains(result, "eval") {
+		t.Error("old hook command should be removed")
+	}
+	if !strings.Contains(result, "# before") {
+		t.Error("content before should remain")
+	}
+	if !strings.Contains(result, "# after") {
+		t.Error("content after should remain")
 	}
 }
 
@@ -46,7 +150,8 @@ func TestRemoveFromFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "testrc")
 
-	content := "# before\n" + hookLine + "\n# after\n"
+	block := GenerateHookBlock([]string{"claude"})
+	content := "# before\n\n" + block + "\n# after\n"
 	os.WriteFile(path, []byte(content), 0644)
 
 	if err := removeFromFile(path); err != nil {
@@ -54,43 +159,67 @@ func TestRemoveFromFile(t *testing.T) {
 	}
 
 	data, _ := os.ReadFile(path)
-	if strings.Contains(string(data), hookMarker) {
-		t.Error("hook should have been removed")
+	result := string(data)
+	if strings.Contains(result, blockStart) {
+		t.Error("block should have been removed")
 	}
-	if !strings.Contains(string(data), "# before") {
+	if !strings.Contains(result, "# before") {
 		t.Error("content before hook should remain")
 	}
-	if !strings.Contains(string(data), "# after") {
+	if !strings.Contains(result, "# after") {
 		t.Error("content after hook should remain")
 	}
 }
 
-func TestHookAppendsToEnd(t *testing.T) {
+func TestRemoveFromFileOldStyle(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "testrc")
 
-	// Even with P10k content, hook should be appended at the end
-	// (so it runs after PATH is configured)
-	content := "# Enable Powerlevel10k instant prompt.\nexport PATH=\"$HOME/.local/bin:$PATH\"\n# rest of config\n"
+	content := "# before\n# zpick: session launcher\n[[ -z \"$ZMX_SESSION\" ]] && command -v zpick &>/dev/null && eval \"$(zpick)\"\n# after\n"
 	os.WriteFile(path, []byte(content), 0644)
 
-	// Manually append hook like installZsh does
-	f, _ := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0644)
-	fmt.Fprintf(f, "\n%s\n", hookLine)
-	f.Close()
+	if err := removeFromFile(path); err != nil {
+		t.Fatal(err)
+	}
 
 	data, _ := os.ReadFile(path)
 	result := string(data)
+	if strings.Contains(result, hookMarker) {
+		t.Error("old hook should have been removed")
+	}
+	if !strings.Contains(result, "# before") {
+		t.Error("content before should remain")
+	}
+	if !strings.Contains(result, "# after") {
+		t.Error("content after should remain")
+	}
+}
 
-	if !strings.Contains(result, hookMarker) {
-		t.Fatal("hook not found in output")
+func TestRemoveFromFileWithTermFix(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "testrc")
+
+	block := GenerateHookBlock([]string{"claude"})
+	content := "# before\n" + block + "\n" + termLine + "\n# after\n"
+	os.WriteFile(path, []byte(content), 0644)
+
+	if err := removeFromFile(path); err != nil {
+		t.Fatal(err)
 	}
 
-	// Hook should come after the PATH line
-	pathIdx := strings.Index(result, "PATH")
-	hookIdx := strings.Index(result, hookMarker)
-	if hookIdx <= pathIdx {
-		t.Error("hook should appear after PATH configuration")
+	data, _ := os.ReadFile(path)
+	result := string(data)
+	if strings.Contains(result, blockStart) {
+		t.Error("block should have been removed")
+	}
+	if strings.Contains(result, termMarker) {
+		t.Error("term fix should have been removed")
+	}
+	if !strings.Contains(result, "# before") {
+		t.Error("content before should remain")
+	}
+	if !strings.Contains(result, "# after") {
+		t.Error("content after should remain")
 	}
 }
 
@@ -115,7 +244,6 @@ func TestTermLineContent(t *testing.T) {
 }
 
 func TestIsGhostty(t *testing.T) {
-	// Save and restore env
 	origTermProgram := os.Getenv("TERM_PROGRAM")
 	origTerm := os.Getenv("TERM")
 	defer func() {
@@ -123,21 +251,18 @@ func TestIsGhostty(t *testing.T) {
 		os.Setenv("TERM", origTerm)
 	}()
 
-	// Neither set to ghostty
 	os.Setenv("TERM_PROGRAM", "iTerm2")
 	os.Setenv("TERM", "xterm-256color")
 	if isGhostty() {
 		t.Error("should return false when not Ghostty")
 	}
 
-	// TERM_PROGRAM = Ghostty
 	os.Setenv("TERM_PROGRAM", "Ghostty")
 	os.Setenv("TERM", "xterm-256color")
 	if !isGhostty() {
 		t.Error("should return true when TERM_PROGRAM is Ghostty")
 	}
 
-	// TERM contains ghostty
 	os.Setenv("TERM_PROGRAM", "")
 	os.Setenv("TERM", "xterm-ghostty")
 	if !isGhostty() {
@@ -149,71 +274,29 @@ func TestHasTermFix(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "testrc")
 
-	// File doesn't exist
 	if hasTermFix(path) {
 		t.Error("should return false for non-existent file")
 	}
 
-	// File without term fix
 	os.WriteFile(path, []byte("# some config\n"), 0644)
 	if hasTermFix(path) {
 		t.Error("should return false for file without term fix")
 	}
 
-	// File with term fix
 	os.WriteFile(path, []byte("# some config\n"+termLine+"\n"), 0644)
 	if !hasTermFix(path) {
 		t.Error("should return true for file with term fix")
 	}
 }
 
-func TestRemoveFromFileWithTermFix(t *testing.T) {
+func TestRemoveFromFileNotFound(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "testrc")
 
-	content := "# before\n" + hookLine + "\n" + termLine + "\n# after\n"
-	os.WriteFile(path, []byte(content), 0644)
+	os.WriteFile(path, []byte("# just config\n"), 0644)
 
 	if err := removeFromFile(path); err != nil {
 		t.Fatal(err)
 	}
-
-	data, _ := os.ReadFile(path)
-	result := string(data)
-	if strings.Contains(result, hookMarker) {
-		t.Error("hook should have been removed")
-	}
-	if strings.Contains(result, termMarker) {
-		t.Error("term fix should have been removed")
-	}
-	if !strings.Contains(result, "# before") {
-		t.Error("content before hook should remain")
-	}
-	if !strings.Contains(result, "# after") {
-		t.Error("content after hook should remain")
-	}
-}
-
-func TestRemoveFromFileTermFixOnly(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "testrc")
-
-	content := "# before\n" + termLine + "\n# after\n"
-	os.WriteFile(path, []byte(content), 0644)
-
-	if err := removeFromFile(path); err != nil {
-		t.Fatal(err)
-	}
-
-	data, _ := os.ReadFile(path)
-	result := string(data)
-	if strings.Contains(result, termMarker) {
-		t.Error("term fix should have been removed")
-	}
-	if !strings.Contains(result, "# before") {
-		t.Error("content before should remain")
-	}
-	if !strings.Contains(result, "# after") {
-		t.Error("content after should remain")
-	}
+	// Should print "not found" message but not error
 }

@@ -166,3 +166,8 @@ func FastList() ([]Session, error) {
 func Kill(name string) error {
 	return exec.Command("zmosh", "kill", name).Run()
 }
+
+// ExecCommand replaces the current process with the given command.
+func ExecCommand(path string, argv []string) error {
+	return syscall.Exec(path, argv, os.Environ())
+}

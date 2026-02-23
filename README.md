@@ -16,6 +16,16 @@ So I made this run on every terminal. Now my Mac is constantly creating and resu
 
 It also handles new sessions — `Enter` creates one named after your current directory, `z` lets you pick a project via zoxide first. But the real point is: your Mac does the work of keeping sessions alive, and your phone just picks them up.
 
+### Session guard for AI coding tools
+
+zpick can also guard specific commands like `claude`, `codex`, and `opencode`. When you type one of these outside a zmosh session, you get a brief prompt:
+
+```
+  ⚡ Not in a zmosh session. Press ENTER to pick one (10s)  esc skip
+```
+
+Press Enter to pick a session (the tool auto-launches inside it), or just wait — the command runs normally after 10 seconds. No more losing your AI coding session because you forgot to start zmosh first.
+
 ## Dependencies
 
 | Dependency | Required | What it does |
@@ -59,18 +69,23 @@ make install
 zpick install-hook
 ```
 
-This auto-detects your shell (zsh or bash) and adds the hook line to your `.zshrc` or `.bashrc`. If you use Powerlevel10k, it places the hook before instant prompt so the picker can read keyboard input.
+This auto-detects your shell (zsh or bash) and adds a guard block to your `.zshrc` or `.bashrc`. The hook wraps configured AI coding tools (`claude`, `codex`, `opencode` by default) so they prompt you to pick a zmosh session when run outside one.
 
-Open a new terminal and you should see it.
-
-#### Manual hook setup
-
-If you prefer to add the hook manually, add this to your shell config:
+It also creates a config at `~/.config/zpick/guard.conf` listing the guarded apps. To add or remove apps:
 
 ```bash
-# zpick: session launcher
-[[ -z "$ZMX_SESSION" ]] && command -v zpick &>/dev/null && eval "$(zpick)"
+zpick guard --add aider      # add an app
+zpick guard --remove codex   # remove an app
+zpick guard --list           # see current list
 ```
+
+To remove the hook entirely:
+
+```bash
+zpick install-hook --remove
+```
+
+If upgrading from a previous version, `install-hook` automatically migrates the old `eval "$(zpick)"` hook to the new guard format.
 
 ## CLI
 
@@ -82,6 +97,7 @@ zpick check        Check dependencies
 zpick check --json Machine-readable dependency check
 zpick attach <n>   Attach or create session
 zpick kill <name>  Kill a session
+zpick guard        Session guard for AI coding tools
 zpick install-hook Add shell hook to .zshrc/.bashrc
 zpick upgrade      Upgrade to the latest version
 zpick version      Print version
@@ -120,11 +136,18 @@ zpick version      Print version
 
 ## How it works
 
-The TUI renders to `/dev/tty` so it works even when stdout is piped. Only the final shell command goes to stdout, which the hook `eval`s. This means:
+The TUI renders to `/dev/tty` so it works even when stdout is piped. Only the final shell command goes to stdout.
 
+**Interactive picker** (`zpick` with no args):
 - `eval "$(zpick)"` — TUI appears, selecting a session runs `exec zmosh attach <name>`
 - Press Escape — empty output, shell prompt returns normally
-- `zpick | cat` — only the command string appears, TUI still renders on the terminal
+
+**Guard mode** (runs automatically for configured apps):
+- You type `claude` outside a zmosh session
+- The shell wrapper calls `zpick guard -- claude`
+- A 10-second prompt appears — press Enter to pick a session, or wait/press Esc to skip
+- If you pick a session, the original command auto-launches inside it via `ZPICK_AUTORUN`
+- If you skip, the original command runs normally
 
 ## Usage
 

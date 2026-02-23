@@ -55,6 +55,16 @@ func main() {
 			fmt.Fprintf(os.Stderr, "zpick: %v\n", err)
 			os.Exit(1)
 		}
+	case "guard":
+		if err := runGuard(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "zpick: %v\n", err)
+			os.Exit(1)
+		}
+	case "autorun":
+		if err := runAutorun(); err != nil {
+			fmt.Fprintf(os.Stderr, "zpick: %v\n", err)
+			os.Exit(1)
+		}
 	case "install-hook":
 		if err := runInstallHook(); err != nil {
 			fmt.Fprintf(os.Stderr, "zpick: %v\n", err)
@@ -93,7 +103,7 @@ func shouldCheckUpdates(args []string) bool {
 		return false
 	}
 	switch args[0] {
-	case "version", "upgrade", "--help", "-h", "help":
+	case "version", "upgrade", "--help", "-h", "help", "guard", "autorun":
 		return false
 	}
 	for _, arg := range args[1:] {
@@ -113,6 +123,7 @@ Usage:
   zpick check        Check dependencies (--json for machine-readable)
   zpick attach <n>   Attach or create session
   zpick kill <name>  Kill a session
+  zpick guard        Session guard for AI coding tools
   zpick install-hook Add shell hook to .zshrc/.bashrc
   zpick upgrade      Upgrade to the latest version
   zpick version      Print version`)
