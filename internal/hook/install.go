@@ -50,11 +50,14 @@ func GenerateHookBlock(apps []string) string {
 	// Picker launcher: eval the command zp outputs
 	b.WriteString("zp() { eval \"$(command zp)\"; }\n")
 
-	// Autorun: launch saved command when entering a new session
-	b.WriteString("# Auto-run: launch saved command when entering a new session\n")
+	// Autorun: defer to precmd so it runs after shell init (avoids p10k instant prompt conflict)
 	b.WriteString("if [[ -n \"$ZPICK_AUTORUN\" ]]; then\n")
-	b.WriteString("  command zp autorun\n")
-	b.WriteString("  unset ZPICK_AUTORUN\n")
+	b.WriteString("  _zpick_autorun() {\n")
+	b.WriteString("    precmd_functions=(${precmd_functions:#_zpick_autorun})\n")
+	b.WriteString("    unset ZPICK_AUTORUN\n")
+	b.WriteString("    command zp autorun\n")
+	b.WriteString("  }\n")
+	b.WriteString("  precmd_functions+=(_zpick_autorun)\n")
 	b.WriteString("fi\n")
 
 	// Guard function — checks ALL backend session env vars
