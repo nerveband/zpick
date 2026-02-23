@@ -7,7 +7,11 @@ import (
 )
 
 func runPicker() error {
-	cmd, err := picker.Run()
+	b, err := loadBackend(true)
+	if err != nil {
+		return err
+	}
+	cmd, err := picker.Run(b)
 	if err != nil {
 		return err
 	}

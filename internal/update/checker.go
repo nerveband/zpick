@@ -160,7 +160,7 @@ func FormatNotice(result CheckResult) string {
 	if result.Err != nil || !result.HasUpdate {
 		return ""
 	}
-	return fmt.Sprintf("\nUpdate available: %s\nRun 'zpick upgrade' to update\n\n", result.LatestVersion)
+	return fmt.Sprintf("\nUpdate available: %s\nRun 'zp upgrade' to update\n\n", result.LatestVersion)
 }
 
 func cachePath() string {

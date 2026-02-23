@@ -6,16 +6,18 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/nerveband/zpick/internal/backend"
 	"github.com/nerveband/zpick/internal/guard"
 )
 
 // Old-style markers for migration (all generations)
 const hookMarker = "zpick: session launcher"
 
-// Legacy markers from before the rename (v1.x, zmosh-picker era)
+// Legacy markers from before the rename (v1.x zmosh-picker era, v2.x zpick era)
 var legacyMarkers = []string{
 	"zmosh-picker: session launcher",
 	"zmosh-picker: auto-launch session picker",
+	"command zpick", // v2.x zpick hooks that reference the old binary name
 }
 
 // Block markers for new guard-based hook
@@ -29,24 +31,35 @@ export TERM=xterm-ghostty`
 
 const termMarker = "zpick: terminal fix"
 
+// sessionEnvCheck builds the bash/zsh condition checking all session env vars.
+func sessionEnvCheck() string {
+	vars := backend.AllSessionEnvVars()
+	var parts []string
+	for _, v := range vars {
+		parts = append(parts, fmt.Sprintf(`-z "$%s"`, v))
+	}
+	return strings.Join(parts, " && ")
+}
+
 // GenerateHookBlock builds the shell hook block from the guard config.
 func GenerateHookBlock(apps []string) string {
 	var b strings.Builder
 	b.WriteString(blockStart)
 	b.WriteByte('\n')
 
-	// Autorun: launch saved command when entering a new zmosh session
-	b.WriteString("# Auto-run: launch saved command when entering a new zmosh session\n")
+	// Autorun: launch saved command when entering a new session
+	b.WriteString("# Auto-run: launch saved command when entering a new session\n")
 	b.WriteString("if [[ -n \"$ZPICK_AUTORUN\" ]]; then\n")
-	b.WriteString("  command zpick autorun\n")
+	b.WriteString("  command zp autorun\n")
 	b.WriteString("  unset ZPICK_AUTORUN\n")
 	b.WriteString("fi\n")
 
-	// Guard function
+	// Guard function — checks ALL backend session env vars
+	envCheck := sessionEnvCheck()
 	b.WriteString("_zpick_guard() {\n")
-	b.WriteString("  if [[ -z \"$ZMX_SESSION\" ]] && command -v zpick &>/dev/null; then\n")
+	fmt.Fprintf(&b, "  if [[ %s ]] && command -v zp &>/dev/null; then\n", envCheck)
 	b.WriteString("    local _r\n")
-	b.WriteString("    _r=$(command zpick guard -- \"$@\")\n")
+	b.WriteString("    _r=$(command zp guard -- \"$@\")\n")
 	b.WriteString("    if [[ -n \"$_r\" ]]; then eval \"$_r\"; return; fi\n")
 	b.WriteString("  fi\n")
 	b.WriteString("  command \"$@\"\n")
@@ -55,7 +68,7 @@ func GenerateHookBlock(apps []string) string {
 	// Per-app shell functions
 	for _, app := range apps {
 		if err := guard.ValidateName(app); err != nil {
-			continue // skip invalid names
+			continue
 		}
 		fname := guard.FuncName(app)
 		fmt.Fprintf(&b, "%s() { _zpick_guard %s \"$@\"; }\n", fname, app)
@@ -73,6 +86,8 @@ func Install() error {
 		return installShell(zshrcPath())
 	case "bash":
 		return installShell(bashrcPath())
+	case "fish":
+		return installFish()
 	default:
 		apps, _ := guard.ReadConfig()
 		block := GenerateHookBlock(apps)
@@ -88,6 +103,8 @@ func Remove() error {
 		return removeFromFile(zshrcPath())
 	case "bash":
 		return removeFromFile(bashrcPath())
+	case "fish":
+		return removeFish()
 	default:
 		return fmt.Errorf("unsupported shell: %s", shell)
 	}
@@ -95,7 +112,6 @@ func Remove() error {
 
 // installShell installs the guard block into a shell config file.
 func installShell(path string) error {
-	// Ensure config file exists with defaults
 	guard.EnsureConfig()
 
 	apps, err := guard.ReadConfig()
@@ -103,14 +119,11 @@ func installShell(path string) error {
 		return fmt.Errorf("cannot read guard config: %w", err)
 	}
 
-	// Read existing file content (or empty if doesn't exist)
 	data, _ := os.ReadFile(path)
 	content := string(data)
 
-	// Check if new-style block already exists with same content
 	block := GenerateHookBlock(apps)
 	if strings.Contains(content, blockStart) {
-		// Remove existing block first, then re-add (idempotent update)
 		content = removeBlock(content)
 	}
 
@@ -128,14 +141,12 @@ func installShell(path string) error {
 		}
 	}
 
-	// Append new block
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("cannot open %s: %w", path, err)
 	}
 	defer f.Close()
 
-	// Write existing content + new block
 	trimmed := strings.TrimRight(content, "\n")
 	if trimmed != "" {
 		fmt.Fprint(f, trimmed)
@@ -157,7 +168,6 @@ func removeBlock(content string) string {
 
 	endIdx := strings.Index(content, blockEnd)
 	if endIdx < 0 {
-		// Start found but no end — remove only the start line + warn
 		lines := strings.Split(content, "\n")
 		var result []string
 		for _, line := range lines {
@@ -170,10 +180,8 @@ func removeBlock(content string) string {
 		return strings.Join(result, "\n")
 	}
 
-	// Remove everything from start to end (inclusive of the end line)
 	before := content[:startIdx]
 	after := content[endIdx+len(blockEnd):]
-	// Clean up extra newlines
 	if strings.HasPrefix(after, "\n") {
 		after = after[1:]
 	}
@@ -192,7 +200,6 @@ func removeOldHook(content string, marker string) string {
 		}
 		if skip {
 			skip = false
-			// Skip the command line that follows the marker comment
 			if strings.Contains(line, "zpick") || strings.Contains(line, "zmosh-picker") {
 				continue
 			}
@@ -288,24 +295,21 @@ func removeFromFile(path string) error {
 		return nil
 	}
 
-	// Remove new-style block
 	if hasNewHook {
 		content = removeBlock(content)
 	}
 
-	// Remove old-style hook (v2.0+ zpick era)
 	if hasOldHook {
 		content = removeOldHook(content, hookMarker)
 	}
 
-	// Remove legacy hooks (v1.x zmosh-picker era)
 	for _, marker := range legacyMarkers {
 		if strings.Contains(content, marker) {
 			content = removeOldHook(content, marker)
 		}
 	}
 
-	// Remove TERM fix
+	// Remove TERM fix — detect both bash/zsh and fish patterns
 	if hasTermMarker {
 		lines := strings.Split(content, "\n")
 		var result []string
@@ -317,7 +321,7 @@ func removeFromFile(path string) error {
 			}
 			if skip {
 				skip = false
-				if strings.Contains(line, "export TERM=") {
+				if strings.Contains(line, "export TERM=") || strings.Contains(line, "set -gx TERM") {
 					continue
 				}
 			}

@@ -1,14 +1,18 @@
 package main
 
 import (
-	"github.com/nerveband/zpick/internal/zmosh"
+	"os"
 )
 
 func runAttach(args []string) error {
+	b, err := loadBackend(true)
+	if err != nil {
+		return err
+	}
+
 	name := args[0]
 	dir := ""
 
-	// Parse --dir flag
 	for i := 1; i < len(args); i++ {
 		if args[i] == "--dir" && i+1 < len(args) {
 			dir = args[i+1]
@@ -17,7 +21,9 @@ func runAttach(args []string) error {
 	}
 
 	if dir != "" {
-		return zmosh.AttachInDir(name, dir)
+		if err := os.Chdir(dir); err != nil {
+			return err
+		}
 	}
-	return zmosh.Attach(name)
+	return b.Attach(name)
 }

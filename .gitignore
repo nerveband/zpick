@@ -5,6 +5,7 @@
 /agents/
 
 # Go build output
+/zp
 /zpick
 /zmosh-picker
 /zmosh-picker-go

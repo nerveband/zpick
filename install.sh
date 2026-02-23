@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# zpick installer
+# zp installer
 # Downloads pre-built binary from GitHub releases, or builds from source.
 
 REPO="nerveband/zpick"
 INSTALL_DIR="${HOME}/.local/bin"
 
 echo ""
-echo "Installing zpick..."
+echo "Installing zp..."
 echo ""
 
 # ─── Detect platform ─────────────────────────────────────────────────
@@ -39,10 +39,10 @@ if command -v curl &>/dev/null; then
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/zpick_${TAG#v}_${OS}_${ARCH}.tar.gz"
     echo "  Downloading ${TAG}..."
 
-    if curl -fsSL "$DOWNLOAD_URL" | tar xz -C "$INSTALL_DIR" zpick 2>/dev/null; then
-      chmod +x "$INSTALL_DIR/zpick"
-      echo "  Installed zpick ${TAG} to ${INSTALL_DIR}/zpick"
-      "$INSTALL_DIR/zpick" install-hook
+    if curl -fsSL "$DOWNLOAD_URL" | tar xz -C "$INSTALL_DIR" zp 2>/dev/null; then
+      chmod +x "$INSTALL_DIR/zp"
+      echo "  Installed zp ${TAG} to ${INSTALL_DIR}/zp"
+      "$INSTALL_DIR/zp" install-hook
       echo ""
       echo "Done! Open a new terminal to try it."
       exit 0
@@ -55,13 +55,12 @@ fi
 
 if command -v go &>/dev/null; then
   echo "  Building from source..."
-  go install "github.com/${REPO}/cmd/zpick@latest"
+  go install "github.com/${REPO}/cmd/zp@latest"
   echo "  Installed via go install"
 
-  # Ensure GOBIN is in PATH
   GOBIN="$(go env GOPATH)/bin"
-  if [[ -f "$GOBIN/zpick" ]]; then
-    "$GOBIN/zpick" install-hook
+  if [[ -f "$GOBIN/zp" ]]; then
+    "$GOBIN/zp" install-hook
   fi
   echo ""
   echo "Done! Open a new terminal to try it."
@@ -74,9 +73,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [[ -f "$SCRIPT_DIR/go.mod" ]]; then
   echo "  Building from local source..."
   cd "$SCRIPT_DIR"
-  go build -o "$INSTALL_DIR/zpick" ./cmd/zpick
-  chmod +x "$INSTALL_DIR/zpick"
-  "$INSTALL_DIR/zpick" install-hook
+  go build -o "$INSTALL_DIR/zp" ./cmd/zp
+  chmod +x "$INSTALL_DIR/zp"
+  "$INSTALL_DIR/zp" install-hook
   echo ""
   echo "Done! Open a new terminal to try it."
   exit 0

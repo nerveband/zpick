@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/nerveband/zpick/internal/backend"
 	"github.com/nerveband/zpick/internal/picker"
-	"github.com/nerveband/zpick/internal/zmosh"
 	"golang.org/x/term"
 )
 
@@ -24,34 +24,30 @@ const (
 )
 
 // Run shows the guard prompt and returns a shell command to eval, or empty string.
-// argv is the original command+args the user typed (e.g. ["claude", "--model", "opus"]).
-func Run(argv []string) (string, error) {
-	// Already in a zmosh session — exit silently
-	if os.Getenv("ZMX_SESSION") != "" {
+func Run(b backend.Backend, argv []string) (string, error) {
+	// Already in a session — exit silently
+	if b.InSession() {
 		return "", nil
 	}
 
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
-		return "", nil // can't open tty, let the command run
+		return "", nil
 	}
 	defer tty.Close()
 
-	// Show static prompt with timeout
-	fmt.Fprintf(tty, "\n  %s⚡%s Not in a zmosh session. Press %sENTER%s to pick one (%ds)  %sesc%s %sskip%s\n",
-		boldYel, reset, boldWht, reset, int(timeout.Seconds()), dim, reset, dim, reset)
+	fmt.Fprintf(tty, "\n  %s⚡%s Not in a %s session. Press %sENTER%s to pick one (%ds)  %sesc%s %sskip%s\n",
+		boldYel, reset, b.Name(), boldWht, reset, int(timeout.Seconds()), dim, reset, dim, reset)
 	fmt.Fprintf(tty, "  %s>%s ", boldYel, reset)
 
 	action := waitForKey(tty, timeout)
 
-	// Clear the prompt line
 	fmt.Fprintln(tty)
 
 	switch action {
 	case keyEnter:
-		return runPicker(tty, argv)
+		return runPicker(tty, b, argv)
 	default:
-		// ESC, timeout, Ctrl-C, or any other key — exit silently
 		return "", nil
 	}
 }
@@ -65,7 +61,6 @@ const (
 	keyOther
 )
 
-// waitForKey waits for a keypress or timeout. Uses raw mode on /dev/tty.
 func waitForKey(tty *os.File, d time.Duration) keyAction {
 	oldState, err := term.MakeRaw(int(tty.Fd()))
 	if err != nil {
@@ -83,11 +78,11 @@ func waitForKey(tty *os.File, d time.Duration) keyAction {
 		}
 		if n >= 1 {
 			switch buf[0] {
-			case 13, 10: // Enter
+			case 13, 10:
 				resultCh <- keyEnter
-			case 27: // Escape
+			case 27:
 				resultCh <- keyEscape
-			case 3: // Ctrl-C
+			case 3:
 				resultCh <- keyEscape
 			default:
 				resultCh <- keyOther
@@ -103,32 +98,18 @@ func waitForKey(tty *os.File, d time.Duration) keyAction {
 	}
 }
 
-// runPicker launches the full picker and returns the appropriate shell command.
-// If the user picks a session, it includes the auto-launch env var for the original command.
-func runPicker(tty *os.File, argv []string) (string, error) {
-	cmd, err := picker.Run()
+func runPicker(tty *os.File, b backend.Backend, argv []string) (string, error) {
+	cmd, err := picker.Run(b)
 	if err != nil {
 		return "", err
 	}
 	if cmd == "" {
-		return "", nil // user escaped
+		return "", nil
 	}
 
-	// The picker returns commands like:
-	//   exec zmosh attach "session-name"
-	//   cd "/path" && exec zmosh attach "session-name"
-	//
-	// For new sessions (exec zmosh attach), we prepend ZPICK_AUTORUN
-	// so the original command auto-launches inside the session.
-	// For existing sessions, zmosh reconnects to a running shell,
-	// so we can't auto-run — just print guidance.
 	if len(argv) > 0 {
 		encoded := encodeArgv(argv)
 		if encoded != "" {
-			// Check if this is an existing session by looking at the command
-			// Existing sessions also use "exec zmosh attach", so we always set the env var.
-			// It will only be picked up if a new shell starts (new session).
-			// For existing sessions, also print guidance to tty.
 			fmt.Fprintf(tty, "  %srun:%s %s\n", dim, reset, formatArgv(argv))
 			return fmt.Sprintf("ZPICK_AUTORUN=%s %s", encoded, cmd), nil
 		}
@@ -137,7 +118,6 @@ func runPicker(tty *os.File, argv []string) (string, error) {
 	return cmd, nil
 }
 
-// encodeArgv encodes a command argv as base64 JSON for ZPICK_AUTORUN.
 func encodeArgv(argv []string) string {
 	if len(argv) == 0 {
 		return ""
@@ -166,7 +146,6 @@ func DecodeArgv(encoded string) ([]string, error) {
 }
 
 // Autorun reads ZPICK_AUTORUN, decodes argv, and execs the command.
-// Called from the shell hook on session start.
 func Autorun() error {
 	encoded := os.Getenv("ZPICK_AUTORUN")
 	if encoded == "" {
@@ -175,22 +154,19 @@ func Autorun() error {
 
 	argv, err := DecodeArgv(encoded)
 	if err != nil {
-		return nil // silently ignore decode errors
+		return nil
 	}
 
-	// Find the command in PATH
 	path, err := exec.LookPath(argv[0])
 	if err != nil {
 		return fmt.Errorf("%s: command not found", argv[0])
 	}
 
-	// Unset ZPICK_AUTORUN before exec to prevent recursion
 	os.Unsetenv("ZPICK_AUTORUN")
 
-	return zmosh.ExecCommand(path, argv)
+	return backend.ExecCommand(path, argv)
 }
 
-// formatArgv joins argv into a human-readable command string.
 func formatArgv(argv []string) string {
 	if len(argv) == 0 {
 		return ""

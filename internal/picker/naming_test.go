@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerveband/zpick/internal/zmosh"
+	"github.com/nerveband/zpick/internal/backend"
 )
 
 func TestCounterName_NoConflict(t *testing.T) {
@@ -15,7 +15,7 @@ func TestCounterName_NoConflict(t *testing.T) {
 }
 
 func TestCounterName_WithConflict(t *testing.T) {
-	existing := []zmosh.Session{
+	existing := []backend.Session{
 		{Name: "projects"},
 	}
 	name := CounterName("projects", existing)
@@ -25,7 +25,7 @@ func TestCounterName_WithConflict(t *testing.T) {
 }
 
 func TestCounterName_MultipleConflicts(t *testing.T) {
-	existing := []zmosh.Session{
+	existing := []backend.Session{
 		{Name: "projects"},
 		{Name: "projects-2"},
 		{Name: "projects-3"},
@@ -45,7 +45,6 @@ func TestCounterName_FromPath(t *testing.T) {
 
 func TestDateName(t *testing.T) {
 	name := DateName("/Users/nerveband/projects")
-	// Should match projects-MMDD pattern
 	if !strings.HasPrefix(name, "projects-") {
 		t.Errorf("expected projects-MMDD format, got '%s'", name)
 	}

@@ -1,8 +1,8 @@
 version: 2
 
 builds:
-  - main: ./cmd/zpick
-    binary: zpick
+  - main: ./cmd/zp
+    binary: zp
     ldflags:
       - -s -w -X main.version={{.Version}}
     goos:

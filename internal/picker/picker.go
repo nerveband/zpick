@@ -7,11 +7,11 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/nerveband/zpick/internal/zmosh"
+	"github.com/nerveband/zpick/internal/backend"
 	"golang.org/x/term"
 )
 
-// ANSI color codes matching the zsh script
+// ANSI color codes
 const (
 	reset    = "\033[0m"
 	dim      = "\033[2m"
@@ -27,7 +27,6 @@ const (
 	boldWht  = "\033[1;97m"
 )
 
-// ActionType represents the user's chosen action.
 type ActionType int
 
 const (
@@ -40,7 +39,6 @@ const (
 	ActionEscape
 )
 
-// Action represents a user action from the picker.
 type Action struct {
 	Type ActionType
 	Name string
@@ -48,54 +46,51 @@ type Action struct {
 
 // Run is the main interactive picker loop.
 // Returns a shell command string to be eval'd by the caller, or empty string.
-func Run() (string, error) {
-	// Guard: skip if already in a zmosh session
-	if os.Getenv("ZMX_SESSION") != "" && os.Getenv("ZPICK") == "" {
+func Run(b backend.Backend) (string, error) {
+	// Guard: skip if already in a session
+	if b.InSession() && os.Getenv("ZPICK") == "" {
 		return "", nil
 	}
 
-	// Open /dev/tty for direct terminal I/O
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
 		return "", nil
 	}
 	defer tty.Close()
 
-	// Guard: if zmosh not found, show install guidance
-	if _, err := exec.LookPath("zmosh"); err != nil {
-		fmt.Fprintf(tty, "\n  %szpick:%s zmosh not found\n", boldCyan, reset)
-		fmt.Fprintf(tty, "  %sInstall:%s brew install mmonad/tap/zmosh\n", dim, reset)
-		fmt.Fprintf(tty, "  %sMore info:%s https://github.com/mmonad/zmosh\n", dim, reset)
-		fmt.Fprintf(tty, "  %sRun 'zpick check' for full dependency status%s\n\n", dim, reset)
+	// Guard: if backend binary not found, show install guidance
+	if ok, _ := b.Available(); !ok {
+		fmt.Fprintf(tty, "\n  %szp:%s %s not found\n", boldCyan, reset, b.BinaryName())
+		fmt.Fprintf(tty, "  %sRun 'zp check' for full dependency status%s\n\n", dim, reset)
 		return "", nil
 	}
 
 	for {
-		sessions, err := zmosh.FastList()
+		sessions, err := b.FastList()
 		if err != nil {
 			return "", fmt.Errorf("failed to list sessions: %w", err)
 		}
 
-		action, err := showPicker(tty, sessions)
+		action, err := showPicker(tty, b, sessions)
 		if err != nil {
 			return "", err
 		}
 
 		switch action.Type {
 		case ActionAttach:
-			return "exec " + zmosh.AttachCommand(action.Name), nil
+			return "exec " + b.AttachCommand(action.Name, ""), nil
 		case ActionNew:
 			cwd, _ := os.Getwd()
 			name := CounterName(cwd, sessions)
 			fmt.Fprintf(tty, "\n  %s>%s %s%s%s\n\n", boldGrn, reset, boldWht, name, reset)
-			return "exec " + zmosh.AttachCommand(name), nil
+			return "exec " + b.AttachCommand(name, ""), nil
 		case ActionNewDate:
 			cwd, _ := os.Getwd()
 			name := DateName(cwd)
 			fmt.Fprintf(tty, "\n  %s>%s %s%s%s\n\n", boldGrn, reset, boldWht, name, reset)
-			return "exec " + zmosh.AttachCommand(name), nil
+			return "exec " + b.AttachCommand(name, ""), nil
 		case ActionCustom:
-			return handleCustom(tty, sessions)
+			return handleCustom(tty, b, sessions)
 		case ActionZoxide:
 			dir, err := runZoxide(tty)
 			if err != nil || dir == "" {
@@ -103,21 +98,21 @@ func Run() (string, error) {
 			}
 			name := CounterName(dir, sessions)
 			fmt.Fprintf(tty, "\n  %s>%s %s%s%s %s%s%s\n\n", boldGrn, reset, boldWht, name, reset, dim, dir, reset)
-			return fmt.Sprintf("cd %q && exec %s", dir, zmosh.AttachCommand(name)), nil
+			return fmt.Sprintf("cd %q && exec %s", dir, b.AttachCommand(name, "")), nil
 		case ActionKill:
-			if err := confirmAndKill(tty, action.Name); err != nil {
+			if err := confirmAndKill(tty, b, action.Name); err != nil {
 				fmt.Fprintf(tty, "  %sfailed: %v%s\n", dim, err, reset)
 			} else {
 				fmt.Fprintf(tty, "  %skilled%s %s%s%s\n", boldRed, reset, boldWht, action.Name, reset)
 			}
-			continue // loop back to show updated list
+			continue
 		case ActionEscape:
-			return "", nil // drop to plain shell
+			return "", nil
 		}
 	}
 }
 
-func showPicker(tty *os.File, sessions []zmosh.Session) (Action, error) {
+func showPicker(tty *os.File, b backend.Backend, sessions []backend.Session) (Action, error) {
 	fmt.Fprintln(tty)
 
 	if len(sessions) > 0 {
@@ -125,7 +120,7 @@ func showPicker(tty *os.File, sessions []zmosh.Session) (Action, error) {
 		if len(sessions) > 1 {
 			plural = "s"
 		}
-		fmt.Fprintf(tty, "  %szmosh%s %s%d session%s%s\n\n", boldCyan, reset, dim, len(sessions), plural, reset)
+		fmt.Fprintf(tty, "  %s%s%s %s%d session%s%s\n\n", boldCyan, b.Name(), reset, dim, len(sessions), plural, reset)
 
 		for i, s := range sessions {
 			if i >= MaxSessions {
@@ -144,10 +139,9 @@ func showPicker(tty *os.File, sessions []zmosh.Session) (Action, error) {
 		}
 		fmt.Fprintln(tty)
 	} else {
-		fmt.Fprintf(tty, "  %szmosh%s %sno sessions%s\n\n", boldCyan, reset, dim, reset)
+		fmt.Fprintf(tty, "  %s%s%s %sno sessions%s\n\n", boldCyan, b.Name(), reset, dim, reset)
 	}
 
-	// Show actions
 	cwd, _ := os.Getwd()
 	defaultName := CounterName(cwd, sessions)
 	fmt.Fprintf(tty, "  %senter%s %snew%s %s%s%s\n", boldGrn, reset, dim, reset, boldWht, defaultName, reset)
@@ -159,7 +153,6 @@ func showPicker(tty *os.File, sessions []zmosh.Session) (Action, error) {
 		yellow, reset, dim, reset)
 	fmt.Fprintln(tty)
 
-	// Read single keypress in raw mode
 	fmt.Fprintf(tty, "  %s>%s ", boldCyan, reset)
 
 	oldState, err := term.MakeRaw(int(tty.Fd()))
@@ -179,11 +172,9 @@ func showPicker(tty *os.File, sessions []zmosh.Session) (Action, error) {
 
 	key := buf[0]
 
-	// Handle escape
 	if n == 1 && key == 27 {
 		return Action{Type: ActionEscape}, nil
 	}
-	// Handle Enter
 	if n == 1 && (key == 13 || key == 10) {
 		return Action{Type: ActionNew}, nil
 	}
@@ -207,7 +198,7 @@ func showPicker(tty *os.File, sessions []zmosh.Session) (Action, error) {
 	return Action{Type: ActionEscape}, nil
 }
 
-func enterKillMode(tty *os.File, sessions []zmosh.Session) (Action, error) {
+func enterKillMode(tty *os.File, sessions []backend.Session) (Action, error) {
 	if len(sessions) == 0 {
 		fmt.Fprintf(tty, "  %sno sessions to kill%s\n", dim, reset)
 		return Action{Type: ActionEscape}, nil
@@ -239,9 +230,9 @@ func enterKillMode(tty *os.File, sessions []zmosh.Session) (Action, error) {
 	return Action{Type: ActionEscape}, nil
 }
 
-func confirmAndKill(tty *os.File, name string) error {
+func confirmAndKill(tty *os.File, b backend.Backend, name string) error {
 	if os.Getenv("ZPICK_NO_CONFIRM") == "1" {
-		return zmosh.Kill(name)
+		return b.Kill(name)
 	}
 
 	fmt.Fprintf(tty, "  %skill %s%s%s?%s %sy/n%s ", boldRed, boldWht, name, boldRed, reset, dim, reset)
@@ -258,16 +249,15 @@ func confirmAndKill(tty *os.File, name string) error {
 	fmt.Fprintln(tty)
 
 	if buf[0] == 'y' || buf[0] == 'Y' {
-		return zmosh.Kill(name)
+		return b.Kill(name)
 	}
 	fmt.Fprintf(tty, "  %scancelled%s\n", dim, reset)
 	return nil
 }
 
-func handleCustom(tty *os.File, sessions []zmosh.Session) (string, error) {
+func handleCustom(tty *os.File, b backend.Backend, sessions []backend.Session) (string, error) {
 	fmt.Fprintf(tty, "\n  %sname:%s ", magenta, reset)
 
-	// Read line input from tty
 	reader := bufio.NewReader(tty)
 	line, err := reader.ReadString('\n')
 	if err != nil {
@@ -278,7 +268,6 @@ func handleCustom(tty *os.File, sessions []zmosh.Session) (string, error) {
 		return "", nil
 	}
 
-	// Sub-menu: create in ~, pick dir, or cancel
 	fmt.Fprintf(tty, "\n  %senter%s %screate in ~%s  %sz%s %spick dir%s  %sesc%s %scancel%s\n\n",
 		boldGrn, reset, dim, reset,
 		magenta, reset, dim, reset,
@@ -299,9 +288,8 @@ func handleCustom(tty *os.File, sessions []zmosh.Session) (string, error) {
 	key := buf[0]
 
 	if n == 1 && (key == 13 || key == 10) {
-		// Create in current dir
 		fmt.Fprintf(tty, "\n  %s>%s %s%s%s\n\n", boldGrn, reset, boldWht, customName, reset)
-		return "exec " + zmosh.AttachCommand(customName), nil
+		return "exec " + b.AttachCommand(customName, ""), nil
 	}
 
 	if key == 'z' {
@@ -310,7 +298,7 @@ func handleCustom(tty *os.File, sessions []zmosh.Session) (string, error) {
 			return "", nil
 		}
 		fmt.Fprintf(tty, "\n  %s>%s %s%s%s %s%s%s\n\n", boldGrn, reset, boldWht, customName, reset, dim, dir, reset)
-		return fmt.Sprintf("cd %q && exec %s", dir, zmosh.AttachCommand(customName)), nil
+		return fmt.Sprintf("cd %q && exec %s", dir, b.AttachCommand(customName, "")), nil
 	}
 
 	return "", nil
@@ -327,7 +315,7 @@ func runZoxide(tty *os.File) (string, error) {
 	cmd.Stderr = tty
 	out, err := cmd.Output()
 	if err != nil {
-		return "", nil // user cancelled fzf
+		return "", nil
 	}
 	return strings.TrimSpace(string(out)), nil
 }
@@ -340,7 +328,6 @@ func truncatePath(path string, maxLen int) string {
 	if len(path) <= maxLen {
 		return path
 	}
-	// Show last 3 path components like the zsh script
 	parts := strings.Split(path, "/")
 	if len(parts) > 4 {
 		if strings.HasPrefix(path, "~") {

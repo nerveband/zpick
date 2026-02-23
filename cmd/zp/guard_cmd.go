@@ -10,7 +10,7 @@ import (
 )
 
 func runGuard(args []string) error {
-	// Handle management flags
+	// Handle management flags (don't need a backend)
 	for i, arg := range args {
 		switch arg {
 		case "--add":
@@ -22,7 +22,6 @@ func runGuard(args []string) error {
 				return err
 			}
 			fmt.Fprintf(os.Stderr, "  added %q to guard list\n", name)
-			// Re-run install-hook to regenerate shell functions
 			if err := hook.Install(); err != nil {
 				fmt.Fprintf(os.Stderr, "  warning: could not update hook: %v\n", err)
 			}
@@ -65,8 +64,13 @@ func runGuard(args []string) error {
 		}
 	}
 
-	// Run the guard prompt
-	cmd, err := guard.Run(argv)
+	// Load backend for guard prompt
+	b, err := loadBackend(true)
+	if err != nil {
+		return err
+	}
+
+	cmd, err := guard.Run(b, argv)
 	if err != nil {
 		return err
 	}
@@ -79,8 +83,8 @@ func runGuard(args []string) error {
 func guardUsage() string {
 	return strings.TrimSpace(`
 Usage:
-  zpick guard -- <command> [args...]   Show session prompt before running command
-  zpick guard --add <app>              Add app to guard list
-  zpick guard --remove <app>           Remove app from guard list
-  zpick guard --list                   List guarded apps`)
+  zp guard -- <command> [args...]   Show session prompt before running command
+  zp guard --add <app>              Add app to guard list
+  zp guard --remove <app>           Remove app from guard list
+  zp guard --list                   List guarded apps`)
 }

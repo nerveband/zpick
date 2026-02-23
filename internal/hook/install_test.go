@@ -31,6 +31,16 @@ func TestGenerateHookBlock(t *testing.T) {
 	if !strings.Contains(block, `opencode() { _zpick_guard opencode "$@"; }`) {
 		t.Error("block should contain opencode function")
 	}
+	// Verify all backend session env vars are checked
+	if !strings.Contains(block, `"$ZMX_SESSION"`) {
+		t.Error("block should check ZMX_SESSION")
+	}
+	if !strings.Contains(block, `"$TMUX"`) {
+		t.Error("block should check TMUX")
+	}
+	if !strings.Contains(block, `"$SHPOOL_SESSION_NAME"`) {
+		t.Error("block should check SHPOOL_SESSION_NAME")
+	}
 }
 
 func TestGenerateHookBlockSkipsInvalidNames(t *testing.T) {
@@ -289,6 +299,90 @@ func TestRemoveFromFileWithTermFix(t *testing.T) {
 	}
 	if !strings.Contains(result, "# after") {
 		t.Error("content after should remain")
+	}
+}
+
+func TestGenerateFishHookBlock(t *testing.T) {
+	block := GenerateFishHookBlock([]string{"claude", "codex"})
+
+	if !strings.Contains(block, blockStart) {
+		t.Error("fish block should contain start marker")
+	}
+	if !strings.Contains(block, blockEnd) {
+		t.Error("fish block should contain end marker")
+	}
+	if !strings.Contains(block, "function _zpick_guard") {
+		t.Error("fish block should contain guard function")
+	}
+	if !strings.Contains(block, "set -e ZPICK_AUTORUN") {
+		t.Error("fish block should use set -e to unset ZPICK_AUTORUN")
+	}
+	if !strings.Contains(block, `test -z "$ZMX_SESSION"`) {
+		t.Error("fish block should check ZMX_SESSION")
+	}
+	if !strings.Contains(block, `test -z "$TMUX"`) {
+		t.Error("fish block should check TMUX")
+	}
+	if !strings.Contains(block, `test -z "$SHPOOL_SESSION_NAME"`) {
+		t.Error("fish block should check SHPOOL_SESSION_NAME")
+	}
+	if !strings.Contains(block, "function claude\n  _zpick_guard claude $argv\nend") {
+		t.Error("fish block should contain claude function")
+	}
+	if !strings.Contains(block, "command $argv") {
+		t.Error("fish block should use $argv not \"$@\"")
+	}
+}
+
+func TestFishConfigPath(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	got := fishConfigPath()
+	want := filepath.Join(dir, "fish", "conf.d", "zp.fish")
+	if got != want {
+		t.Errorf("fishConfigPath() = %q, want %q", got, want)
+	}
+}
+
+func TestInstallAndRemoveFish(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	// Write guard config so install can read it
+	confDir := filepath.Join(dir, "zpick")
+	os.MkdirAll(confDir, 0755)
+	os.WriteFile(filepath.Join(confDir, "guard.conf"), []byte("claude\ncodex\n"), 0644)
+
+	// Ensure not Ghostty (no TERM fix)
+	t.Setenv("TERM_PROGRAM", "iTerm2")
+	t.Setenv("TERM", "xterm-256color")
+
+	if err := installFish(); err != nil {
+		t.Fatal(err)
+	}
+
+	path := fishConfigPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal("fish hook file should exist after install")
+	}
+	content := string(data)
+
+	if !strings.Contains(content, "function _zpick_guard") {
+		t.Error("fish hook should contain guard function")
+	}
+	if !strings.Contains(content, "function claude") {
+		t.Error("fish hook should contain claude function")
+	}
+
+	// Remove
+	if err := removeFish(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Error("fish hook file should be removed after removeFish()")
 	}
 }
 

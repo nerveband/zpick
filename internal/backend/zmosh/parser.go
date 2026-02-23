@@ -3,25 +3,25 @@ package zmosh
 import (
 	"strconv"
 	"strings"
+
+	"github.com/nerveband/zpick/internal/backend"
 )
 
 // ParseSessions parses the tab-separated output of `zmosh list`.
 // Each line has fields like: session_name=foo\tpid=123\tclients=1\tstarted_in=~/bar
 // Lines may have leading whitespace or a → prefix for the current session.
-func ParseSessions(output string) []Session {
-	var sessions []Session
+func ParseSessions(output string) []backend.Session {
+	var sessions []backend.Session
 
 	for _, line := range strings.Split(output, "\n") {
 		line = strings.TrimSpace(line)
-		// Strip → prefix (current session indicator)
 		line = strings.TrimPrefix(line, "\u2192 ")
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
 
-		var s Session
-		s.StartedIn = "~" // default
+		s := backend.Session{StartedIn: "~"}
 
 		for _, field := range strings.Split(line, "\t") {
 			field = strings.TrimSpace(field)
