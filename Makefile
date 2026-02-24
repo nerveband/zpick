@@ -11,6 +11,10 @@ test:
 
 install: build
 	cp zp $(HOME)/.local/bin/
+ifeq ($(shell uname),Darwin)
+	xattr -cr $(HOME)/.local/bin/zp
+	codesign -fs - $(HOME)/.local/bin/zp
+endif
 
 clean:
 	rm -f zp zpick

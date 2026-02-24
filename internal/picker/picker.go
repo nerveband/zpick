@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/nerveband/zpick/internal/backend"
 	"golang.org/x/term"
@@ -35,6 +36,7 @@ const (
 	ActionCustom
 	ActionZoxide
 	ActionKill
+	ActionKillAll
 	ActionHelp
 	ActionEscape
 )
@@ -47,8 +49,15 @@ type Action struct {
 // Run is the main interactive picker loop.
 // Returns a shell command string to be eval'd by the caller, or empty string.
 func Run(b backend.Backend, version string) (string, error) {
-	// Guard: skip if already in a session
+	// Guard: inform user if already in a session
 	if b.InSession() && os.Getenv("ZPICK") == "" {
+		tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+		if err == nil {
+			fmt.Fprintf(tty, "\n  %szp:%s already in %s%s%s session %s%s%s\n\n",
+				boldCyan, reset, boldWht, b.Name(), reset,
+				boldYel, os.Getenv(b.SessionEnvVar()), reset)
+			tty.Close()
+		}
 		return "", nil
 	}
 
@@ -107,11 +116,17 @@ func Run(b backend.Backend, version string) (string, error) {
 			fmt.Fprintf(tty, "\n  %s>%s %s%s%s %s%s%s\n\n", boldGrn, reset, boldWht, name, reset, dim, dir, reset)
 			return fmt.Sprintf("cd %q && exec %s", dir, b.AttachCommand(name, "")), nil
 		case ActionKill:
+			if action.Name == "" {
+				continue // no session selected, redraw
+			}
 			if err := confirmAndKill(tty, b, action.Name); err != nil {
 				fmt.Fprintf(tty, "  %sfailed: %v%s\n", dim, err, reset)
 			} else {
 				fmt.Fprintf(tty, "  %skilled%s %s%s%s\n", boldRed, reset, boldWht, action.Name, reset)
 			}
+			continue
+		case ActionKillAll:
+			confirmAndKillAll(tty, b, sessions)
 			continue
 		case ActionHelp:
 			showHelpConfig(tty, b, version)
@@ -123,6 +138,7 @@ func Run(b backend.Backend, version string) (string, error) {
 }
 
 func showPicker(tty *os.File, b backend.Backend, sessions []backend.Session) (Action, error) {
+	fmt.Fprint(tty, "\033[H\033[2J") // clear screen
 	fmt.Fprintln(tty)
 
 	if len(sessions) > 0 {
@@ -214,11 +230,12 @@ func showPicker(tty *os.File, b backend.Backend, sessions []backend.Session) (Ac
 
 func enterKillMode(tty *os.File, sessions []backend.Session) (Action, error) {
 	if len(sessions) == 0 {
-		fmt.Fprintf(tty, "  %sno sessions to kill%s\n", dim, reset)
-		return Action{Type: ActionEscape}, nil
+		fmt.Fprintf(tty, "\n  %sno sessions to kill%s\n", dim, reset)
+		time.Sleep(800 * time.Millisecond)
+		return Action{Type: ActionKill}, nil // redraw picker
 	}
 
-	fmt.Fprintf(tty, "\n  %skill%s %swhich session?%s ", boldRed, reset, dim, reset)
+	fmt.Fprintf(tty, "\n  %skill%s %swhich session? %sc%s %sclear all%s ", boldRed, reset, dim, boldRed, reset, dim, reset)
 
 	oldState, err := term.MakeRaw(int(tty.Fd()))
 	if err != nil {
@@ -232,16 +249,18 @@ func enterKillMode(tty *os.File, sessions []backend.Session) (Action, error) {
 	fmt.Fprintln(tty)
 
 	if n == 1 && buf[0] == 27 {
-		fmt.Fprintf(tty, "  %scancelled%s\n", dim, reset)
-		return Action{Type: ActionEscape}, nil
+		return Action{Type: ActionKill}, nil // cancelled, redraw picker
+	}
+
+	if buf[0] == 'c' || buf[0] == 'C' {
+		return Action{Type: ActionKillAll}, nil
 	}
 
 	if idx, ok := IndexForKey(buf[0]); ok && idx < len(sessions) {
 		return Action{Type: ActionKill, Name: sessions[idx].Name}, nil
 	}
 
-	fmt.Fprintf(tty, "  %scancelled%s\n", dim, reset)
-	return Action{Type: ActionEscape}, nil
+	return Action{Type: ActionKill}, nil // invalid key, redraw picker
 }
 
 func confirmAndKill(tty *os.File, b backend.Backend, name string) error {
@@ -267,6 +286,34 @@ func confirmAndKill(tty *os.File, b backend.Backend, name string) error {
 	}
 	fmt.Fprintf(tty, "  %scancelled%s\n", dim, reset)
 	return nil
+}
+
+func confirmAndKillAll(tty *os.File, b backend.Backend, sessions []backend.Session) {
+	fmt.Fprintf(tty, "  %skill all %d sessions?%s %sy/n%s ", boldRed, len(sessions), reset, dim, reset)
+
+	oldState, err := term.MakeRaw(int(tty.Fd()))
+	if err != nil {
+		return
+	}
+	defer term.Restore(int(tty.Fd()), oldState)
+
+	buf := make([]byte, 1)
+	tty.Read(buf)
+	term.Restore(int(tty.Fd()), oldState)
+	fmt.Fprintln(tty)
+
+	if buf[0] != 'y' && buf[0] != 'Y' {
+		fmt.Fprintf(tty, "  %scancelled%s\n", dim, reset)
+		return
+	}
+
+	for _, s := range sessions {
+		if err := b.Kill(s.Name); err != nil {
+			fmt.Fprintf(tty, "  %sfailed: %s — %v%s\n", dim, s.Name, err, reset)
+		} else {
+			fmt.Fprintf(tty, "  %skilled%s %s%s%s\n", boldRed, reset, boldWht, s.Name, reset)
+		}
+	}
 }
 
 func handleCustom(tty *os.File, b backend.Backend, sessions []backend.Session) (string, error) {

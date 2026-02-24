@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/nerveband/zpick/internal/backend"
 )
@@ -98,5 +100,23 @@ func (z *Zmosh) AttachCommand(name, dir string) string {
 }
 
 func (z *Zmosh) Kill(name string) error {
-	return exec.Command("zmosh", "kill", name).Run()
+	if err := exec.Command("zmosh", "kill", name).Run(); err != nil {
+		return err
+	}
+	// FastList reads socket files directly from the zmx directory.
+	// zmosh kill may not remove the socket synchronously, so wait
+	// briefly for it to disappear, then remove it ourselves.
+	dir, err := ResolveZmxDir()
+	if err != nil {
+		return nil
+	}
+	sock := filepath.Join(dir, name)
+	for range 10 {
+		if _, err := os.Stat(sock); os.IsNotExist(err) {
+			return nil
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	os.Remove(sock)
+	return nil
 }

@@ -11,9 +11,16 @@
 ## Build & Install
 
 - `make build` — build `zp` binary with version from git tags
-- `make install` — build and copy to `~/.local/bin/`
+- `make install` — build, sign, and copy to `~/.local/bin/`
 - `make test` — run all tests
 - Binary name is `zp` (renamed from `zpick` in v2.4.0). The `zpick` binary is a transitional shim.
+
+## macOS Code Signing (CRITICAL)
+
+- **Always ad-hoc sign the binary on macOS** after building. Without signing, macOS silently kills the binary (SIGKILL, no error message).
+- `make install` handles this automatically — it copies the binary, strips xattrs (`xattr -cr`), then signs (`codesign -fs -`).
+- The repo lives inside Dropbox, so `cp` carries over `com.dropbox.attrs` and `com.apple.provenance` xattrs. These must be stripped **before** signing, and signing must happen **after** copying to the install path.
+- If a user reports "zp doesn't load" or "zp just exits silently", check signing first: `codesign -v ~/.local/bin/zp`
 
 ## Project Notes
 

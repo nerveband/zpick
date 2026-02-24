@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/nerveband/zpick/internal/backend"
 	zmoshpkg "github.com/nerveband/zpick/internal/backend/zmosh"
@@ -89,5 +91,20 @@ func (z *Zmx) AttachCommand(name, dir string) string {
 }
 
 func (z *Zmx) Kill(name string) error {
-	return exec.Command("zmx", "kill", name).Run()
+	if err := exec.Command("zmx", "kill", name).Run(); err != nil {
+		return err
+	}
+	dir, err := zmoshpkg.ResolveZmxDir()
+	if err != nil {
+		return nil
+	}
+	sock := filepath.Join(dir, name)
+	for range 10 {
+		if _, err := os.Stat(sock); os.IsNotExist(err) {
+			return nil
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	os.Remove(sock)
+	return nil
 }
