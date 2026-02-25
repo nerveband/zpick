@@ -10,6 +10,7 @@ import (
 	// Register all backends via init()
 	_ "github.com/nerveband/zpick/internal/backend/shpool"
 	_ "github.com/nerveband/zpick/internal/backend/tmux"
+	_ "github.com/nerveband/zpick/internal/backend/zellij"
 	_ "github.com/nerveband/zpick/internal/backend/zmosh"
 	_ "github.com/nerveband/zpick/internal/backend/zmx"
 )

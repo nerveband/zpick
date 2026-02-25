@@ -9,7 +9,7 @@ import (
 )
 
 // validBackends is the list of recognized backend names.
-var validBackends = []string{"zmosh", "zmx", "tmux", "shpool"}
+var validBackends = []string{"zmosh", "zmx", "tmux", "shpool", "zellij"}
 
 // ConfigDir returns the zpick config directory, respecting XDG_CONFIG_HOME.
 func ConfigDir() string {
@@ -123,7 +123,7 @@ func Load(interactive bool) (Backend, error) {
 
 	switch len(available) {
 	case 0:
-		return nil, fmt.Errorf("no supported session manager found (install zmosh, zmx, tmux, or shpool)")
+		return nil, fmt.Errorf("no supported session manager found (install zmosh, zmx, tmux, shpool, or zellij)")
 	case 1:
 		// Auto-select the only available backend and save it
 		if err := SetBackend(available[0]); err != nil {

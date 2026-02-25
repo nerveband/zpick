@@ -24,9 +24,9 @@
 
 ## Project Notes
 
-- This is a **multi-backend** session picker supporting zmosh, zmx, tmux, and shpool via the `backend.Backend` interface.
+- This is a **multi-backend** session picker supporting zmosh, zmx, tmux, shpool, and zellij via the `backend.Backend` interface.
 - Backend is configured in `~/.config/zpick/backend`. Auto-detected if only one backend is available.
 - The picker suppresses backend command output and displays its own clean status messages.
 - The TUI renders to `/dev/tty` and outputs only the final shell command to stdout, used via `eval "$(zp)"`.
 - Shell hooks support zsh, bash, and fish. Fish hooks go to `~/.config/fish/conf.d/zp.fish`.
-- Hook env var guard checks all backend session vars (ZMX_SESSION, TMUX, SHPOOL_SESSION_NAME).
+- Hook env var guard checks all backend session vars (ZMX_SESSION, TMUX, SHPOOL_SESSION_NAME, ZELLIJ).

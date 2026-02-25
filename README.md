@@ -1,231 +1,163 @@
-# zpick
+# zp
 
-Session launcher for [zmosh](https://github.com/mmonad/zmosh). One keypress to resume any session.
+A single-keypress session picker that works with multiple terminal session managers. Press a number, you're in.
 
 <p align="center">
-  <img src="assets/screenshot.svg" alt="zpick in action" width="680">
+  <img src="assets/screenshot.svg" alt="zp in action" width="680">
 </p>
 
-## Why
+## What it does
 
-The idea is simple: if every terminal on your Mac starts inside a zmosh session, then every session is always there waiting for you when you pick up your phone.
+zp gives you a fast TUI for listing, creating, attaching, and killing sessions. It doesn't care which session manager you use. Pick whichever you like:
 
-I SSH from my phone a lot. The annoying part was never the SSH itself — it was arriving on the remote machine and not knowing what sessions exist, or having to type `zmosh attach some-long-name` on a phone keyboard. Half the time I'd just start fresh and lose whatever I was working on.
+| Backend | What it is |
+|---------|-----------|
+| [tmux](https://github.com/tmux/tmux) | The standard terminal multiplexer |
+| [zellij](https://zellij.dev) | Modern terminal workspace with panes and tabs |
+| [zmosh](https://github.com/mmonad/zmosh) | Session persistence with UDP remote support |
+| [zmx](https://github.com/neurosnap/zmx) | Lightweight session manager (zmosh is forked from this) |
+| [shpool](https://github.com/shell-pool/shpool) | Shell session pooling daemon |
 
-So I made this run on every terminal. Now my Mac is constantly creating and resuming named sessions without me thinking about it. When I SSH from my phone later, those sessions are right there. Press `1`. Done.
-
-It also handles new sessions — `Enter` creates one named after your current directory, `z` lets you pick a project via zoxide first. But the real point is: your Mac does the work of keeping sessions alive, and your phone just picks them up.
-
-### Session guard for AI coding tools
-
-zpick can also guard specific commands like `claude`, `codex`, and `opencode`. When you type one of these outside a zmosh session, you get a brief prompt:
-
-```
-  ⚡ Not in a zmosh session. Press ENTER to pick one (10s)  esc skip
-```
-
-Press Enter to pick a session (the tool auto-launches inside it), or just wait — the command runs normally after 10 seconds. No more losing your AI coding session because you forgot to start zmosh first.
-
-## Dependencies
-
-| Dependency | Required | What it does |
-|-----------|----------|---------|
-| [zmosh](https://github.com/mmonad/zmosh) | **Yes** | Session persistence (fork of [zmx](https://github.com/neurosnap/zmx)) |
-| [zoxide](https://github.com/ajeetdsouza/zoxide) | No | Directory picker for the `z` key |
-| [fzf](https://github.com/junegunn/fzf) | No | Fuzzy finder, used by zoxide |
-
-```bash
-# macOS
-brew install mmonad/tap/zmosh
-brew install zoxide    # optional
-brew install fzf       # optional, used by zoxide
-```
+zp auto-detects which backends you have installed. If you have more than one, it asks you to pick on first run and saves your choice.
 
 ## Install
 
-### From source (Go 1.22+)
+Download a pre-built binary from [GitHub Releases](https://github.com/nerveband/zpick/releases/latest). Builds are available for macOS and Linux, both arm64 and amd64.
 
-```bash
-go install github.com/nerveband/zpick/cmd/zpick@latest
-```
-
-### From GitHub releases
+You can also use the install script:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/nerveband/zpick/main/install.sh | bash
 ```
 
-### Build from source
+After installing, add the shell hook:
 
 ```bash
-git clone https://github.com/nerveband/zpick.git
-cd zpick
-make install
+zp install-hook
 ```
 
-### Add the shell hook
+This detects your shell (zsh, bash, or fish) and adds a small block to your config. The hook does two things: it wraps `zp` so the picker output gets eval'd correctly, and it sets up the session guard (more on that below).
+
+To remove the hook:
 
 ```bash
-zpick install-hook
+zp install-hook --remove
 ```
 
-This auto-detects your shell (zsh or bash) and adds a guard block to your `.zshrc` or `.bashrc`. The hook wraps configured AI coding tools (`claude`, `codex`, `opencode` by default) so they prompt you to pick a zmosh session when run outside one.
-
-It also creates a config at `~/.config/zpick/guard.conf` listing the guarded apps. To add or remove apps:
+### Self-update
 
 ```bash
-zpick guard --add aider      # add an app
-zpick guard --remove codex   # remove an app
-zpick guard --list           # see current list
+zp upgrade
 ```
 
-To remove the hook entirely:
+Downloads the latest release binary directly. No package manager needed.
+
+## Session guard
+
+The guard is optional but useful. It wraps specific commands so that if you run them outside a session, you get a quick prompt:
+
+```
+  ⚡ Not in a tmux session. Press ENTER to pick one (10s)  esc skip
+```
+
+Press Enter to pick a session (the original command auto-launches inside it). Or just wait 10 seconds and the command runs normally. This is handy for AI coding tools where losing your session halfway through is annoying.
+
+By default, the guard covers `claude`, `codex`, and `opencode`. You can change that:
 
 ```bash
-zpick install-hook --remove
+zp guard --add aider       # start guarding aider
+zp guard --remove codex    # stop guarding codex
+zp guard --list            # see what's guarded
 ```
 
-If upgrading from a previous version, `install-hook` automatically migrates the old `eval "$(zpick)"` hook to the new guard format.
+After changing the list, re-run `zp install-hook` to update the shell functions.
 
-## CLI
+## Keys
 
-```
-zpick              Interactive TUI picker (default)
-zpick list         List sessions (human-readable)
-zpick list --json  List sessions (JSON for scripts)
-zpick check        Check dependencies
-zpick check --json Machine-readable dependency check
-zpick attach <n>   Attach or create session
-zpick kill <name>  Kill a session
-zpick guard        Session guard for AI coding tools
-zpick install-hook Add shell hook to .zshrc/.bashrc
-zpick upgrade      Upgrade to the latest version
-zpick version      Print version
-```
+Everything is single-press. No typing session names, no confirming.
 
-### `list --json` output
-
-```json
-{
-  "sessions": [
-    {
-      "name": "bbcli",
-      "pid": 5678,
-      "clients": 1,
-      "started_in": "~/Documents/GitHub/agent-to-bricks",
-      "active": true
-    }
-  ],
-  "count": 1,
-  "zmosh_version": "0.4.2"
-}
-```
-
-### `check --json` output
-
-```json
-{
-  "zmosh": {"installed": true, "version": "0.4.2", "path": "/opt/homebrew/bin/zmosh"},
-  "zoxide": {"installed": true, "version": "0.9.4", "path": "/opt/homebrew/bin/zoxide"},
-  "fzf": {"installed": true, "version": "0.46.0", "path": "/opt/homebrew/bin/fzf"},
-  "shell": "zsh",
-  "os": "darwin",
-  "arch": "arm64"
-}
-```
-
-## How it works
-
-The TUI renders to `/dev/tty` so it works even when stdout is piped. Only the final shell command goes to stdout.
-
-**Interactive picker** (`zpick` with no args):
-- `eval "$(zpick)"` — TUI appears, selecting a session runs `exec zmosh attach <name>`
-- Press Escape — empty output, shell prompt returns normally
-
-**Guard mode** (runs automatically for configured apps):
-- You type `claude` outside a zmosh session
-- The shell wrapper calls `zpick guard -- claude`
-- A 10-second prompt appears — press Enter to pick a session, or wait/press Esc to skip
-- If you pick a session, the original command auto-launches inside it via `ZPICK_AUTORUN`
-- If you skip, the original command runs normally
-
-## Usage
-
-```
-  zmosh 3 sessions
-
-  1  api-server * ~/projects/api-server
-  2  dotfiles . ~/dotfiles
-  3  ai-happy-design . ~/Doc/GH/ai-happy-design
-
-  enter new myproject
-  c custom  z pick dir  d +date  k kill  esc skip
-
-  >
-```
-
-### Keys
-
-| Key | What happens |
+| Key | Action |
 |-----|--------|
 | `1`-`9` | Attach to that session |
-| `a`-`y` | Sessions 10+ |
-| `Enter` | New session in current directory |
-| `c` | Custom name — type a name, then pick where to create it |
-| `z` | Pick a directory with zoxide, then new session there |
+| `a`-`y` | Sessions 10 and up |
+| `Enter` | New session named after current directory |
+| `c` | Custom name, then pick where to create it |
+| `z` | Pick a directory with zoxide, create session there |
 | `d` | New session with today's date as suffix |
-| `k` | Kill mode — pick a session to kill (returns to menu after) |
-| `Esc` | Skip, just give me a normal shell |
-
-Everything is single-press. No typing names, no confirming.
+| `k` | Kill mode, pick a session to remove |
+| `h` | Help and config screen |
+| `Esc` | Skip, get a normal shell |
 
 ### Session names
 
 | Key | Format | Example |
 |-----|--------|---------|
-| `Enter` | `<dirname>` or `<dirname>-<N>` | `api-server`, then `api-server-2` |
+| `Enter` | `<dirname>` or `<dirname>-N` | `api-server`, then `api-server-2` |
 | `c` | whatever you type | `my-thing` |
 | `d` | `<dirname>-MMDD` | `api-server-0220` |
-| `z` | `<picked-dir>` or `<picked-dir>-<N>` | `ai-happy-design`, then `ai-happy-design-2` |
+| `z` | `<picked-dir>` or `<picked-dir>-N` | `frontend`, then `frontend-2` |
 
-First session gets the bare name. Counter starts at `-2` only when a conflict exists.
+First session gets the bare name. The counter only appears when there's a conflict.
 
-### The `*` and `.` indicators
+### Status indicators
 
-`*` (green) means someone is connected to that session right now. Probably you, on another device. `.` means it's idle — pick it up.
+`*` (green) means someone is connected to that session. Probably you, on another device. `.` means idle.
 
-### Killing sessions
+## CLI
 
-Press `k` to enter kill mode, then pick a session number to kill. You'll be asked to confirm with `y/n`. To skip confirmation:
-
-```bash
-export ZPICK_NO_CONFIRM=1
+```
+zp              Interactive TUI picker (default)
+zp list         List sessions (human-readable)
+zp list --json  List sessions (JSON for scripts)
+zp check        Check dependencies and available backends
+zp check --json Machine-readable dependency check
+zp attach <n>   Attach or create session
+zp kill <name>  Kill a session
+zp guard        Session guard for AI coding tools
+zp install-hook Add/update shell hook
+zp upgrade      Self-update to latest release
+zp version      Print version
 ```
 
-## Cross-platform
+## How it works
 
-zpick is a Go binary that works on:
+The TUI renders to `/dev/tty` so it works even when stdout is piped. Only the final shell command goes to stdout, where it gets eval'd by the shell hook.
+
+```bash
+# The hook adds this to your shell config:
+zp() { eval "$(command zp)"; }
+```
+
+Selecting a session outputs something like `exec tmux new-session -A -s myproject`, which the eval picks up. Pressing Escape outputs nothing, so your shell just continues.
+
+## Optional dependencies
+
+| Tool | What it adds |
+|------|-------------|
+| [zoxide](https://github.com/ajeetdsouza/zoxide) | Directory picker for the `z` key |
+| [fzf](https://github.com/junegunn/fzf) | Fuzzy finder, used by zoxide |
+
+```bash
+# macOS
+brew install zoxide fzf
+```
+
+## Platforms
+
+zp is a Go binary that runs on:
 - macOS (arm64, amd64)
 - Linux (arm64, amd64)
-- zsh and bash
+- zsh, bash, and fish
 
-## Works on narrow screens
-
-The layout fits ~30 character widths. Action keys are stacked on two lines. No padding on session names. I built this mostly so I could SSH from my phone and not hate the experience.
-
-## Uninstall
-
-```bash
-zpick install-hook --remove
-```
+The layout fits about 30 characters wide. No wasted space on session names. Works fine over SSH on a phone.
 
 ## Related projects
 
-- [zmosh](https://github.com/mmonad/zmosh) — Session persistence with UDP remote support
-- [zmx](https://github.com/neurosnap/zmx) — The session persistence tool zmosh is forked from
-- [zmx-session-manager](https://github.com/mdsakalu/zmx-session-manager) — TUI session manager for zmx/zmosh
-- [zoxide](https://github.com/ajeetdsouza/zoxide) — Frecency-based `cd` replacement
-- [fzf](https://github.com/junegunn/fzf) — Fuzzy finder
+- [zmosh](https://github.com/mmonad/zmosh) - Session persistence with UDP remote support
+- [zmx](https://github.com/neurosnap/zmx) - The session tool zmosh is forked from
+- [zellij](https://zellij.dev) - Terminal workspace with batteries included
+- [tmux](https://github.com/tmux/tmux) - Terminal multiplexer
+- [shpool](https://github.com/shell-pool/shpool) - Shell session pooling
 
 ## License
 

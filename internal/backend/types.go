@@ -17,7 +17,7 @@ type Session struct {
 // Backend is the interface that all session managers implement.
 type Backend interface {
 	// Identity
-	Name() string        // "zmosh", "zmx", "tmux", "shpool"
+	Name() string        // "zmosh", "zmx", "tmux", "shpool", "zellij"
 	BinaryName() string  // binary to look up in PATH
 	SessionEnvVar() string // env var set inside a session
 
@@ -37,7 +37,7 @@ type Backend interface {
 // AllSessionEnvVars returns env var names from all known backends.
 // Used by hook generation to check if we're inside any session.
 func AllSessionEnvVars() []string {
-	return []string{"ZMX_SESSION", "TMUX", "SHPOOL_SESSION_NAME"}
+	return []string{"ZMX_SESSION", "TMUX", "SHPOOL_SESSION_NAME", "ZELLIJ"}
 }
 
 // ExecCommand replaces the current process with the given command.
