@@ -114,6 +114,12 @@ First session gets the bare name. The counter only appears when there's a confli
 
 `*` (green) means someone is connected to that session. Probably you, on another device. `.` means idle.
 
+### Key mode
+
+By default, sessions are labeled `1-9` then `a-y`. If you're on a mobile keyboard where letters are the default view, switch to letters-first mode:
+
+Press `h` for the help screen, then `l` to toggle between `numbers` and `letters` mode. The setting is saved to `~/.config/zpick/keys`.
+
 ## CLI
 
 ```

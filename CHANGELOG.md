@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.8.0
+
+- **Key mode toggle** — switch session labels between numbers-first (`1-9,a-y`) and letters-first (`a-y,1-9`). Useful on mobile keyboards where letters are the default view. Press `h` then `l` to toggle. Saved to `~/.config/zpick/keys`.
+
 ## v2.7.0
 
 - **In-session switching** — run `zp` inside an active session to switch, create, or kill sessions without remembering backend-specific detach commands. Works with all backends (tmux, zellij, zmosh, zmx, shpool).
