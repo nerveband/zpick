@@ -122,3 +122,37 @@ func TestSetBackendValidation(t *testing.T) {
 		t.Error("expected error for invalid backend name")
 	}
 }
+
+func TestReadKeyMode_Default(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+
+	mode := ReadKeyMode()
+	if mode != "numbers" {
+		t.Errorf("expected default 'numbers', got %q", mode)
+	}
+}
+
+func TestSetAndReadKeyMode(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+
+	if err := SetKeyMode("letters"); err != nil {
+		t.Fatalf("SetKeyMode: %v", err)
+	}
+	mode := ReadKeyMode()
+	if mode != "letters" {
+		t.Errorf("expected 'letters', got %q", mode)
+	}
+	data, _ := os.ReadFile(filepath.Join(tmp, "zpick", "keys"))
+	if got := string(data); got != "letters\n" {
+		t.Errorf("file contents: %q", got)
+	}
+}
+
+func TestSetKeyMode_Invalid(t *testing.T) {
+	err := SetKeyMode("emoji")
+	if err == nil {
+		t.Error("expected error for invalid key mode")
+	}
+}

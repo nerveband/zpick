@@ -198,3 +198,29 @@ func isValidBackend(name string) bool {
 	}
 	return false
 }
+
+// ReadKeyMode returns the configured key mode ("numbers" or "letters").
+// Defaults to "numbers" if not configured.
+func ReadKeyMode() string {
+	data, err := os.ReadFile(filepath.Join(ConfigDir(), "keys"))
+	if err != nil {
+		return "numbers"
+	}
+	mode := strings.TrimSpace(string(data))
+	if mode == "letters" {
+		return "letters"
+	}
+	return "numbers"
+}
+
+// SetKeyMode writes the key mode to the config file.
+func SetKeyMode(mode string) error {
+	if mode != "numbers" && mode != "letters" {
+		return fmt.Errorf("invalid key mode %q (valid: numbers, letters)", mode)
+	}
+	dir := ConfigDir()
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, "keys"), []byte(mode+"\n"), 0644)
+}
