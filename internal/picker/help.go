@@ -41,6 +41,8 @@ func showHelpConfig(tty *os.File, b backend.Backend, version string) {
 			b = cycleBackend(tty, b)
 		case 'u':
 			toggleUDP(tty)
+		case 'l':
+			toggleKeyMode()
 		}
 	}
 }
@@ -53,7 +55,11 @@ func renderHelp(tty *os.File, b backend.Backend, version string) {
 
 	// Keys section
 	fmt.Fprintf(tty, "  %sKeys%s\n", boldWht, reset)
-	fmt.Fprintf(tty, "    %s1-9,a-y%s  attach session       %senter%s  new session\n", boldYel, reset, boldGrn, reset)
+	keyRange := "1-9,a-y"
+	if backend.ReadKeyMode() == "letters" {
+		keyRange = "a-y,1-9"
+	}
+	fmt.Fprintf(tty, "    %s%s%s  attach session       %senter%s  new session\n", boldYel, keyRange, reset, boldGrn, reset)
 	fmt.Fprintf(tty, "    %sc%s        custom name           %sd%s      +date name\n", magenta, reset, cyan, reset)
 	fmt.Fprintf(tty, "    %sz%s        pick dir (zoxide)     %sk%s      kill session\n", magenta, reset, red, reset)
 	fmt.Fprintf(tty, "    %sh%s        this screen           %sesc%s    skip\n", cyan, reset, yellow, reset)
@@ -94,6 +100,14 @@ func renderHelp(tty *os.File, b backend.Backend, version string) {
 	} else {
 		fmt.Fprintf(tty, "    %s·%s  udp        %s%s (zmosh only)%s\n", dim, reset, dim, udpStr, reset)
 	}
+
+	// Key mode
+	keyMode := backend.ReadKeyMode()
+	keyLabel := "1-9,a-y"
+	if keyMode == "letters" {
+		keyLabel = "a-y,1-9"
+	}
+	fmt.Fprintf(tty, "    %sl%s  keys       %s%-12s%s %s[%s]%s\n", magenta, reset, boldWht, keyMode, reset, dim, keyLabel, reset)
 
 	fmt.Fprintln(tty)
 	fmt.Fprintf(tty, "  %s%s%s  %sgithub.com/nerveband/zpick%s\n", dim, version, reset, dim, reset)
@@ -137,6 +151,16 @@ func toggleUDP(tty *os.File) {
 	if err := backend.SetUDP(!enabled, host); err != nil {
 		fmt.Fprintf(tty, "\r  %sfailed: %v%s", dim, err, reset)
 	}
+}
+
+func toggleKeyMode() {
+	current := backend.ReadKeyMode()
+	next := "letters"
+	if current == "letters" {
+		next = "numbers"
+	}
+	backend.SetKeyMode(next)
+	LoadKeyMode(next)
 }
 
 // readGuardApps reads guard.conf from the config dir.
