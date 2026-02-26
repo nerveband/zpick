@@ -15,6 +15,8 @@ ifeq ($(shell uname),Darwin)
 	xattr -cr $(HOME)/.local/bin/zp
 	codesign -fs - $(HOME)/.local/bin/zp
 endif
+	@ln -sf $(HOME)/.local/bin/zp /usr/local/bin/zp 2>/dev/null || \
+		echo "  note: run 'sudo ln -sf $(HOME)/.local/bin/zp /usr/local/bin/zp' for system-wide PATH"
 
 clean:
 	rm -f zp zpick
