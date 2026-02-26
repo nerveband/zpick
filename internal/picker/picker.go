@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nerveband/zpick/internal/backend"
+	"github.com/nerveband/zpick/internal/switcher"
 	"golang.org/x/term"
 )
 
@@ -49,16 +50,11 @@ type Action struct {
 // Run is the main interactive picker loop.
 // Returns a shell command string to be eval'd by the caller, or empty string.
 func Run(b backend.Backend, version string) (string, error) {
-	// Guard: inform user if already in a session
-	if b.InSession() && os.Getenv("ZPICK") == "" {
-		tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
-		if err == nil {
-			fmt.Fprintf(tty, "\n  %szp:%s already in %s%s%s session %s%s%s\n\n",
-				boldCyan, reset, boldWht, b.Name(), reset,
-				boldYel, os.Getenv(b.SessionEnvVar()), reset)
-			tty.Close()
-		}
-		return "", nil
+	// Detect in-session mode
+	inSession := b.InSession() && os.Getenv("ZPICK") == ""
+	var currentSession string
+	if inSession {
+		currentSession = os.Getenv(b.SessionEnvVar())
 	}
 
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
@@ -80,26 +76,38 @@ func Run(b backend.Backend, version string) (string, error) {
 			return "", fmt.Errorf("failed to list sessions: %w", err)
 		}
 
-		action, err := showPicker(tty, b, sessions)
+		action, err := showPicker(tty, b, sessions, currentSession)
 		if err != nil {
 			return "", err
 		}
 
 		switch action.Type {
 		case ActionAttach:
+			if inSession {
+				switcher.Write(switcher.Target{Action: "attach", Name: action.Name})
+				return b.DetachCommand(), nil
+			}
 			return "exec " + b.AttachCommand(action.Name, ""), nil
 		case ActionNew:
 			cwd, _ := os.Getwd()
 			name := CounterName(cwd, sessions)
 			fmt.Fprintf(tty, "\n  %s>%s %s%s%s\n\n", boldGrn, reset, boldWht, name, reset)
+			if inSession {
+				switcher.Write(switcher.Target{Action: "new", Name: name})
+				return b.DetachCommand(), nil
+			}
 			return "exec " + b.AttachCommand(name, ""), nil
 		case ActionNewDate:
 			cwd, _ := os.Getwd()
 			name := DateName(cwd)
 			fmt.Fprintf(tty, "\n  %s>%s %s%s%s\n\n", boldGrn, reset, boldWht, name, reset)
+			if inSession {
+				switcher.Write(switcher.Target{Action: "new", Name: name})
+				return b.DetachCommand(), nil
+			}
 			return "exec " + b.AttachCommand(name, ""), nil
 		case ActionCustom:
-			cmd, err := handleCustom(tty, b, sessions)
+			cmd, err := handleCustom(tty, b, sessions, inSession)
 			if err != nil {
 				return "", err
 			}
@@ -114,6 +122,10 @@ func Run(b backend.Backend, version string) (string, error) {
 			}
 			name := CounterName(dir, sessions)
 			fmt.Fprintf(tty, "\n  %s>%s %s%s%s %s%s%s\n\n", boldGrn, reset, boldWht, name, reset, dim, dir, reset)
+			if inSession {
+				switcher.Write(switcher.Target{Action: "new", Name: name, Dir: dir})
+				return b.DetachCommand(), nil
+			}
 			return fmt.Sprintf("cd %q && exec %s", dir, b.AttachCommand(name, "")), nil
 		case ActionKill:
 			if action.Name == "" {
@@ -137,7 +149,7 @@ func Run(b backend.Backend, version string) (string, error) {
 	}
 }
 
-func showPicker(tty *os.File, b backend.Backend, sessions []backend.Session) (Action, error) {
+func showPicker(tty *os.File, b backend.Backend, sessions []backend.Session, currentSession string) (Action, error) {
 	fmt.Fprint(tty, "\033[H\033[2J") // clear screen
 	fmt.Fprintln(tty)
 
@@ -146,14 +158,22 @@ func showPicker(tty *os.File, b backend.Backend, sessions []backend.Session) (Ac
 		if len(sessions) > 1 {
 			plural = "s"
 		}
-		fmt.Fprintf(tty, "  %s%s%s %s%d session%s%s\n\n", boldCyan, b.Name(), reset, dim, len(sessions), plural, reset)
+		if currentSession != "" {
+			fmt.Fprintf(tty, "  %s%s%s %s%d session%s%s  %s(in: %s ←)%s\n\n",
+				boldCyan, b.Name(), reset, dim, len(sessions), plural, reset,
+				dim, currentSession, reset)
+		} else {
+			fmt.Fprintf(tty, "  %s%s%s %s%d session%s%s\n\n", boldCyan, b.Name(), reset, dim, len(sessions), plural, reset)
+		}
 
 		for i, s := range sessions {
 			if i >= MaxSessions {
 				break
 			}
 			indicator := fmt.Sprintf("%s.%s", dim, reset)
-			if s.Active {
+			if s.Name == currentSession {
+				indicator = fmt.Sprintf("%s←%s", boldCyan, reset)
+			} else if s.Active {
 				indicator = fmt.Sprintf("%s*%s", boldGrn, reset)
 			}
 			dir := truncatePath(s.StartedIn, 40)
@@ -165,7 +185,13 @@ func showPicker(tty *os.File, b backend.Backend, sessions []backend.Session) (Ac
 		}
 		fmt.Fprintln(tty)
 	} else {
-		fmt.Fprintf(tty, "  %s%s%s %sno sessions%s\n\n", boldCyan, b.Name(), reset, dim, reset)
+		if currentSession != "" {
+			fmt.Fprintf(tty, "  %s%s%s %sno sessions%s  %s(in: %s ←)%s\n\n",
+				boldCyan, b.Name(), reset, dim, reset,
+				dim, currentSession, reset)
+		} else {
+			fmt.Fprintf(tty, "  %s%s%s %sno sessions%s\n\n", boldCyan, b.Name(), reset, dim, reset)
+		}
 	}
 
 	cwd, _ := os.Getwd()
@@ -316,7 +342,7 @@ func confirmAndKillAll(tty *os.File, b backend.Backend, sessions []backend.Sessi
 	}
 }
 
-func handleCustom(tty *os.File, b backend.Backend, sessions []backend.Session) (string, error) {
+func handleCustom(tty *os.File, b backend.Backend, sessions []backend.Session, inSession bool) (string, error) {
 	fmt.Fprintf(tty, "\n  %sname:%s ", magenta, reset)
 
 	customName, ok := readLineRaw(tty)
@@ -345,6 +371,10 @@ func handleCustom(tty *os.File, b backend.Backend, sessions []backend.Session) (
 
 	if n == 1 && (key == 13 || key == 10) {
 		fmt.Fprintf(tty, "\n  %s>%s %s%s%s\n\n", boldGrn, reset, boldWht, customName, reset)
+		if inSession {
+			switcher.Write(switcher.Target{Action: "new", Name: customName})
+			return b.DetachCommand(), nil
+		}
 		return "exec " + b.AttachCommand(customName, ""), nil
 	}
 
@@ -354,6 +384,10 @@ func handleCustom(tty *os.File, b backend.Backend, sessions []backend.Session) (
 			return "", nil
 		}
 		fmt.Fprintf(tty, "\n  %s>%s %s%s%s %s%s%s\n\n", boldGrn, reset, boldWht, customName, reset, dim, dir, reset)
+		if inSession {
+			switcher.Write(switcher.Target{Action: "new", Name: customName, Dir: dir})
+			return b.DetachCommand(), nil
+		}
 		return fmt.Sprintf("cd %q && exec %s", dir, b.AttachCommand(customName, "")), nil
 	}
 
