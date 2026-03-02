@@ -212,10 +212,16 @@ func TestHasHookDetectsAllGenerations(t *testing.T) {
 		t.Error("should detect gen 3 (zpick) hook")
 	}
 
-	// Gen 4: guard block
+	// Gen 4: hook block (current)
 	os.WriteFile(path, []byte(blockStart+"\nstuff\n"+blockEnd+"\n"), 0644)
 	if !hasHook(path) {
-		t.Error("should detect gen 4 (guard) hook")
+		t.Error("should detect gen 4 (hook) block")
+	}
+
+	// Gen 4 legacy: "zpick guard" block markers (v2.7–v2.9)
+	os.WriteFile(path, []byte(legacyBlockStart+"\nstuff\n"+legacyBlockEnd+"\n"), 0644)
+	if !hasHook(path) {
+		t.Error("should detect legacy guard block markers")
 	}
 
 	// No hook
@@ -542,6 +548,25 @@ func TestHasGuardInFile(t *testing.T) {
 	os.WriteFile(path, []byte(blockWithGuard), 0644)
 	if !hasGuardInFile(path) {
 		t.Error("should return true for hook with guard")
+	}
+}
+
+func TestRemoveLegacyBlock(t *testing.T) {
+	content := "# before\n\n" + legacyBlockStart + "\nzp() { eval \"$(command zp)\"; }\n" + legacyBlockEnd + "\n# after\n"
+
+	result := removeLegacyBlock(content)
+
+	if strings.Contains(result, legacyBlockStart) {
+		t.Error("legacy block start should be removed")
+	}
+	if strings.Contains(result, legacyBlockEnd) {
+		t.Error("legacy block end should be removed")
+	}
+	if !strings.Contains(result, "# before") {
+		t.Error("content before block should remain")
+	}
+	if !strings.Contains(result, "# after") {
+		t.Error("content after block should remain")
 	}
 }
 

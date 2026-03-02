@@ -20,10 +20,16 @@ var legacyMarkers = []string{
 	"command zpick", // v2.x zpick hooks that reference the old binary name
 }
 
-// Block markers for new guard-based hook
+// Block markers for the hook block in shell config
 const (
-	blockStart = "# >>> zpick guard >>>"
-	blockEnd   = "# <<< zpick guard <<<"
+	blockStart = "# >>> zpick hook >>>"
+	blockEnd   = "# <<< zpick hook <<<"
+)
+
+// Legacy block markers (v2.7–v2.9 used "guard" instead of "hook")
+const (
+	legacyBlockStart = "# >>> zpick guard >>>"
+	legacyBlockEnd   = "# <<< zpick guard <<<"
 )
 
 const termLine = `# zpick: terminal fix — ensures colors work in zmosh sessions
@@ -152,6 +158,11 @@ func installShell(path string, withGuard bool) error {
 		content = removeBlock(content)
 	}
 
+	// Migration: remove legacy "zpick guard" block markers (v2.7–v2.9)
+	if strings.Contains(content, legacyBlockStart) {
+		content = removeLegacyBlock(content)
+	}
+
 	// Migration: remove old-style hook marker if present (v2.0+ zpick era)
 	if strings.Contains(content, hookMarker) {
 		content = removeOldHook(content, hookMarker)
@@ -188,19 +199,29 @@ func installShell(path string, withGuard bool) error {
 	return nil
 }
 
-// removeBlock removes the guard block from content, returning cleaned content.
+// removeBlock removes the hook block from content, returning cleaned content.
 func removeBlock(content string) string {
-	startIdx := strings.Index(content, blockStart)
+	return removeBlockByMarkers(content, blockStart, blockEnd)
+}
+
+// removeLegacyBlock removes the old "zpick guard" block from content.
+func removeLegacyBlock(content string) string {
+	return removeBlockByMarkers(content, legacyBlockStart, legacyBlockEnd)
+}
+
+// removeBlockByMarkers removes a block delimited by start/end markers.
+func removeBlockByMarkers(content, start, end string) string {
+	startIdx := strings.Index(content, start)
 	if startIdx < 0 {
 		return content
 	}
 
-	endIdx := strings.Index(content, blockEnd)
+	endIdx := strings.Index(content, end)
 	if endIdx < 0 {
 		lines := strings.Split(content, "\n")
 		var result []string
 		for _, line := range lines {
-			if strings.Contains(line, blockStart) {
+			if strings.Contains(line, start) {
 				continue
 			}
 			result = append(result, line)
@@ -210,7 +231,7 @@ func removeBlock(content string) string {
 	}
 
 	before := content[:startIdx]
-	after := content[endIdx+len(blockEnd):]
+	after := content[endIdx+len(end):]
 	if strings.HasPrefix(after, "\n") {
 		after = after[1:]
 	}
@@ -253,7 +274,7 @@ func hasHook(path string) bool {
 		return false
 	}
 	content := string(data)
-	if strings.Contains(content, hookMarker) || strings.Contains(content, blockStart) {
+	if strings.Contains(content, hookMarker) || strings.Contains(content, blockStart) || strings.Contains(content, legacyBlockStart) {
 		return true
 	}
 	for _, marker := range legacyMarkers {
@@ -371,7 +392,7 @@ func removeFromFile(path string) error {
 
 	content := string(data)
 	hasOldHook := strings.Contains(content, hookMarker)
-	hasNewHook := strings.Contains(content, blockStart)
+	hasNewHook := strings.Contains(content, blockStart) || strings.Contains(content, legacyBlockStart)
 	hasTermMarker := strings.Contains(content, termMarker)
 	hasLegacy := false
 	for _, marker := range legacyMarkers {
@@ -388,6 +409,7 @@ func removeFromFile(path string) error {
 
 	if hasNewHook {
 		content = removeBlock(content)
+		content = removeLegacyBlock(content)
 	}
 
 	if hasOldHook {

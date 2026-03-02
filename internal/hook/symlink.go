@@ -3,15 +3,21 @@ package hook
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 )
 
 const symlinkPath = "/usr/local/bin/zp"
 
 // InstallSymlink creates a symlink from /usr/local/bin/zp to ~/.local/bin/zp.
 // Skips if the symlink already points to the right place.
-// Prints a sudo hint if permissions deny creation.
+// On failure, prompts for sudo and retries automatically.
 func InstallSymlink() {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		return
+	}
+
 	home, _ := os.UserHomeDir()
 	target := filepath.Join(home, ".local", "bin", "zp")
 
@@ -25,10 +31,21 @@ func InstallSymlink() {
 		return
 	}
 
-	// Try to create (or replace) the symlink
+	// Try to create (or replace) the symlink without sudo first
 	os.Remove(symlinkPath) // remove stale symlink if any; ok to fail
-	if err := os.Symlink(target, symlinkPath); err != nil {
-		fmt.Printf("  note: run 'sudo ln -sf %s %s' for system-wide PATH\n", target, symlinkPath)
+	if err := os.Symlink(target, symlinkPath); err == nil {
+		fmt.Printf("  symlinked %s -> %s\n", symlinkPath, target)
+		return
+	}
+
+	// Need elevated permissions — try sudo
+	fmt.Printf("  creating %s symlink (requires sudo)...\n", symlinkPath)
+	cmd := exec.Command("sudo", "ln", "-sf", target, symlinkPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("  note: could not create symlink — run manually: sudo ln -sf %s %s\n", target, symlinkPath)
 		return
 	}
 	fmt.Printf("  symlinked %s -> %s\n", symlinkPath, target)
