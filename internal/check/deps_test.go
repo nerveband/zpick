@@ -3,6 +3,8 @@ package check
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/nerveband/zpick/internal/backend"
 )
 
 func TestCheckResultJSON(t *testing.T) {
@@ -113,7 +115,7 @@ func TestCheckJSONContract(t *testing.T) {
 }
 
 func TestDetectShell(t *testing.T) {
-	shell := detectShell()
+	shell := backend.DetectShell()
 	if shell == "" {
 		t.Error("expected non-empty shell")
 	}

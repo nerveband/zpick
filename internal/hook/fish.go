@@ -99,12 +99,7 @@ func installFish(withGuard bool) error {
 		return fmt.Errorf("cannot write %s: %w", path, err)
 	}
 
-	fmt.Printf("  installed shell hook in %s\n", path)
-	fmt.Println("    - zp() function (session picker launcher)")
-	if len(apps) > 0 {
-		fmt.Printf("    - guard wrappers for: %s\n", strings.Join(apps, ", "))
-		fmt.Println("      (ensures these tools run inside a session)")
-	}
+	printInstallSummary(path, apps)
 	return nil
 }
 
@@ -122,25 +117,4 @@ func removeFish() error {
 
 	fmt.Printf("  removed fish hook from %s\n", path)
 	return nil
-}
-
-const fishTermLine = `# zpick: terminal fix — ensures colors work in zmosh sessions
-set -gx TERM xterm-ghostty`
-
-func hasTermFixFish(path string) bool {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return false
-	}
-	return strings.Contains(string(data), "zpick: terminal fix")
-}
-
-func appendTermFixFish(path string) {
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	fmt.Fprintf(f, "\n%s\n", fishTermLine)
-	fmt.Println("  added TERM=xterm-ghostty for fish (ensures colors work in sessions)")
 }

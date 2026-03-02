@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/creativeprojects/go-selfupdate"
+	"github.com/nerveband/zpick/internal/backend"
 )
 
 const (
 	repoOwner = "nerveband"
 	repoName  = "zpick"
-	configDir = ".zpick"
 	cacheFile = "update_cache.json"
 )
 
@@ -60,15 +60,7 @@ func Check(currentVersion string) (hasUpdate bool, latestVersion string, err err
 		return cached.UpdateRequired, cached.LatestVersion, nil
 	}
 
-	source, err := selfupdate.NewGitHubSource(selfupdate.GitHubConfig{})
-	if err != nil {
-		return false, "", err
-	}
-
-	updater, err := selfupdate.NewUpdater(selfupdate.Config{
-		Source:    source,
-		Validator: &selfupdate.ChecksumValidator{UniqueFilename: "checksums.txt"},
-	})
+	updater, err := newUpdater()
 	if err != nil {
 		return false, "", err
 	}
@@ -104,15 +96,7 @@ func Upgrade(currentVersion string) (bool, error) {
 		return false, nil
 	}
 
-	source, err := selfupdate.NewGitHubSource(selfupdate.GitHubConfig{})
-	if err != nil {
-		return false, fmt.Errorf("failed to create update source: %w", err)
-	}
-
-	updater, err := selfupdate.NewUpdater(selfupdate.Config{
-		Source:    source,
-		Validator: &selfupdate.ChecksumValidator{UniqueFilename: "checksums.txt"},
-	})
+	updater, err := newUpdater()
 	if err != nil {
 		return false, fmt.Errorf("failed to create updater: %w", err)
 	}
@@ -164,9 +148,19 @@ func FormatNotice(result CheckResult) string {
 	return fmt.Sprintf("\nUpdate available: %s\nRun 'zp upgrade' to update\n\n", result.LatestVersion)
 }
 
+func newUpdater() (*selfupdate.Updater, error) {
+	source, err := selfupdate.NewGitHubSource(selfupdate.GitHubConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return selfupdate.NewUpdater(selfupdate.Config{
+		Source:    source,
+		Validator: &selfupdate.ChecksumValidator{UniqueFilename: "checksums.txt"},
+	})
+}
+
 func cachePath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, configDir, cacheFile)
+	return filepath.Join(backend.ConfigDir(), cacheFile)
 }
 
 func loadCache() (*Cache, error) {

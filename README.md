@@ -130,18 +130,16 @@ Press `h` for the help screen, then `l` to toggle between `numbers` and `letters
 
 ```
 zp                Interactive TUI picker (default)
-zp list           List sessions (human-readable)
-zp list --json    List sessions (JSON for scripts)
-zp check          Check dependencies and available backends
-zp check --json   Machine-readable dependency check
+zp list           List sessions (--json for machine-readable)
+zp check          Check dependencies (--json for machine-readable)
 zp attach <n>     Attach or create session
 zp kill <name>    Kill a session
 zp guard          Explain session guard and show commands
-zp install-hook   Add shell hook to config
+zp install-hook   Add shell hook to .zshrc/.bashrc/.config/fish
 zp install-guard  Add guard wrappers (installs hook if missing)
 zp remove-hook    Remove shell hook and guard wrappers
 zp remove-guard   Remove guard wrappers only (keeps hook)
-zp upgrade        Self-update to latest release
+zp upgrade        Upgrade to the latest version
 zp version        Print version
 ```
 

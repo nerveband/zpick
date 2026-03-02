@@ -3,9 +3,7 @@ package check
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -40,7 +38,7 @@ func (r Result) JSON() (string, error) {
 // Run checks all dependencies and returns the result.
 func Run() Result {
 	r := Result{
-		Shell: detectShell(),
+		Shell: backend.DetectShell(),
 		OS:    runtime.GOOS,
 		Arch:  runtime.GOARCH,
 	}
@@ -79,14 +77,6 @@ func checkDep(name, versionFlag string) DepStatus {
 		status.Version = ver
 	}
 	return status
-}
-
-func detectShell() string {
-	shell := os.Getenv("SHELL")
-	if shell != "" {
-		return filepath.Base(shell)
-	}
-	return "unknown"
 }
 
 // HasBrew checks if Homebrew is available.

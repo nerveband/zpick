@@ -1,5 +1,26 @@
 # Changelog
 
+## v3.0.0
+
+- **Remove all legacy migration code** — dropped zmosh-picker hooks, old zpick markers, and guard→hook block rename migration. Fresh install only; no backward compatibility shims.
+- **Remove TERM-fix code** — Ghostty terminal detection and `export TERM=xterm-ghostty` injection removed from both bash/zsh and fish hooks.
+- **Consolidate config directory** — update cache moved from `~/.zpick/` to `~/.config/zpick/`, matching all other config files.
+- **Deduplicate utilities** — shared `DetectShell()` in `backend` package replaces copies in `hook` and `check`; `guard.ConfigPath()` reuses `backend.ConfigDir()`.
+- **Single-read `HookStatus()`** — reads shell config once to check both hook and guard presence, replacing triple file reads during upgrade.
+- **Shared install summary** — `printInstallSummary()` used by both shell and fish installers.
+
+## v2.9.3
+
+- **Fix hook refresh on upgrade** — only refresh the shell hook when `zp upgrade` actually downloads a new version.
+
+## v2.9.2
+
+- **Auto-install hook** — `make install` now installs the shell hook automatically. `zp upgrade` auto-updates the hook after downloading a new version.
+
+## v2.9.1
+
+- **Hook is required** — `zp check` and first-run messaging clarify that the shell hook is required for zp to work. Auto-sudo symlink creation. Block markers renamed from "guard" to "hook".
+
 ## v2.9.0
 
 - **Separate hook and guard commands** — `install-hook` and `install-guard` are now distinct commands. Guard wrappers are opt-in via `zp install-guard` instead of `zp install-hook --guard`. New `remove-hook` and `remove-guard` commands for targeted removal.

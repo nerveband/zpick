@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/nerveband/zpick/internal/backend"
 )
 
 // validName matches valid shell function names (letters, digits, underscores, hyphens).
@@ -16,11 +18,7 @@ var DefaultApps = []string{"claude", "codex", "opencode"}
 
 // ConfigPath returns the path to the guard config file.
 func ConfigPath() string {
-	if d := os.Getenv("XDG_CONFIG_HOME"); d != "" {
-		return filepath.Join(d, "zpick", "guard.conf")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "zpick", "guard.conf")
+	return filepath.Join(backend.ConfigDir(), "guard.conf")
 }
 
 // ReadConfig reads the guard config file and returns the list of guarded app names.

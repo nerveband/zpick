@@ -199,6 +199,15 @@ func isValidBackend(name string) bool {
 	return false
 }
 
+// DetectShell returns the basename of the user's login shell, or "unknown".
+func DetectShell() string {
+	shell := os.Getenv("SHELL")
+	if shell != "" {
+		return filepath.Base(shell)
+	}
+	return "unknown"
+}
+
 // ReadKeyMode returns the configured key mode ("numbers" or "letters").
 // Defaults to "numbers" if not configured.
 func ReadKeyMode() string {

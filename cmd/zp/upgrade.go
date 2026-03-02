@@ -12,8 +12,9 @@ func runUpgrade() error {
 	}
 	if upgraded {
 		// Auto-update the shell hook so it stays current
-		if hook.HasHookInstalled() {
-			hook.Install(hook.HasGuardInstalled())
+		hasHook, hasGuard := hook.HookStatus()
+		if hasHook {
+			hook.Install(hasGuard)
 		} else {
 			hook.CheckSymlink()
 		}
