@@ -30,20 +30,9 @@ You can also use the install script:
 curl -fsSL https://raw.githubusercontent.com/nerveband/zpick/main/install.sh | bash
 ```
 
-Then install the shell hook (**required** — zp won't work without it):
+The installer automatically adds a shell hook to your config (`.zshrc`, `.bashrc`, or fish `conf.d/`). The hook is required — it lets `zp` attach sessions in your current shell, enables autorun, and enables in-session switching. On macOS it also creates a `/usr/local/bin/zp` symlink for system-wide PATH access.
 
-```bash
-zp install-hook
-```
-
-The hook adds a small block to your shell config (`.zshrc`, `.bashrc`, or fish `conf.d/`). It does three things:
-- Wraps `zp` so the picker can attach sessions in your current shell
-- Enables autorun (launches saved commands when entering a new session)
-- Enables in-session switching (detach from one session, attach to another)
-
-Without the hook, you can see the picker but selecting a session does nothing — the attach command has no way to run in your shell.
-
-On macOS, `install-hook` also creates a `/usr/local/bin/zp` symlink so `zp` is in the system PATH (needed for `mosh host -- zp`). If it needs elevated permissions, it will prompt for your password.
+`zp upgrade` keeps the hook up to date automatically.
 
 To remove the hook:
 
