@@ -94,18 +94,19 @@ func Check(currentVersion string) (hasUpdate bool, latestVersion string, err err
 }
 
 // Upgrade downloads and installs the latest version.
-func Upgrade(currentVersion string) error {
+// Returns true if an upgrade was performed.
+func Upgrade(currentVersion string) (bool, error) {
 	fmt.Printf("Current version: %s\n", currentVersion)
 	fmt.Println("Checking for updates...")
 
 	if currentVersion == "dev" {
 		fmt.Println("Running dev build — use 'go install' or 'make install' to update.")
-		return nil
+		return false, nil
 	}
 
 	source, err := selfupdate.NewGitHubSource(selfupdate.GitHubConfig{})
 	if err != nil {
-		return fmt.Errorf("failed to create update source: %w", err)
+		return false, fmt.Errorf("failed to create update source: %w", err)
 	}
 
 	updater, err := selfupdate.NewUpdater(selfupdate.Config{
@@ -113,22 +114,22 @@ func Upgrade(currentVersion string) error {
 		Validator: &selfupdate.ChecksumValidator{UniqueFilename: "checksums.txt"},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create updater: %w", err)
+		return false, fmt.Errorf("failed to create updater: %w", err)
 	}
 
 	latest, found, err := updater.DetectLatest(context.Background(), selfupdate.NewRepositorySlug(repoOwner, repoName))
 	if err != nil {
-		return fmt.Errorf("failed to check for updates: %w", err)
+		return false, fmt.Errorf("failed to check for updates: %w", err)
 	}
 
 	if !found {
 		fmt.Println("No releases found")
-		return nil
+		return false, nil
 	}
 
 	if latest.LessOrEqual(currentVersion) {
 		fmt.Printf("Already up to date (latest: %s)\n", latest.Version())
-		return nil
+		return false, nil
 	}
 
 	fmt.Printf("New version available: %s\n", latest.Version())
@@ -136,11 +137,11 @@ func Upgrade(currentVersion string) error {
 
 	exe, err := selfupdate.ExecutablePath()
 	if err != nil {
-		return fmt.Errorf("failed to get executable path: %w", err)
+		return false, fmt.Errorf("failed to get executable path: %w", err)
 	}
 
 	if err := updater.UpdateTo(context.Background(), latest, exe); err != nil {
-		return fmt.Errorf("failed to update: %w", err)
+		return false, fmt.Errorf("failed to update: %w", err)
 	}
 
 	fmt.Printf("Successfully upgraded to %s\n", latest.Version())
@@ -152,7 +153,7 @@ func Upgrade(currentVersion string) error {
 		UpdateRequired: false,
 	})
 
-	return nil
+	return true, nil
 }
 
 // FormatNotice returns a formatted update notification string, or empty if no update.

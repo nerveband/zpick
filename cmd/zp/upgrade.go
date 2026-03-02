@@ -6,8 +6,11 @@ import (
 )
 
 func runUpgrade() error {
-	err := update.Upgrade(version)
-	if err == nil {
+	upgraded, err := update.Upgrade(version)
+	if err != nil {
+		return err
+	}
+	if upgraded {
 		// Auto-update the shell hook so it stays current
 		if hook.HasHookInstalled() {
 			hook.Install(hook.HasGuardInstalled())
@@ -15,5 +18,5 @@ func runUpgrade() error {
 			hook.CheckSymlink()
 		}
 	}
-	return err
+	return nil
 }
