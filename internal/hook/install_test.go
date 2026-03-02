@@ -358,7 +358,7 @@ func TestInstallAndRemoveFish(t *testing.T) {
 	t.Setenv("TERM_PROGRAM", "iTerm2")
 	t.Setenv("TERM", "xterm-256color")
 
-	if err := installFish(); err != nil {
+	if err := installFish(true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -475,6 +475,73 @@ func TestGenerateHookBlockContainsSwitchTarget(t *testing.T) {
 	}
 	if !strings.Contains(block, "zp resume") {
 		t.Error("block should reference zp resume command")
+	}
+}
+
+func TestGenerateHookBlockWithoutGuard(t *testing.T) {
+	block := GenerateHookBlock(nil)
+
+	if !strings.Contains(block, blockStart) {
+		t.Error("block should contain start marker")
+	}
+	if !strings.Contains(block, blockEnd) {
+		t.Error("block should contain end marker")
+	}
+	if !strings.Contains(block, `zp() { eval "$(command zp)"; }`) {
+		t.Error("block should contain zp launcher function")
+	}
+	if !strings.Contains(block, "ZPICK_AUTORUN") {
+		t.Error("block should contain autorun check")
+	}
+	if !strings.Contains(block, "switch-target") {
+		t.Error("block should contain switch-target check")
+	}
+	if strings.Contains(block, "_zpick_guard") {
+		t.Error("block without guard should not contain guard function")
+	}
+}
+
+func TestGenerateFishHookBlockWithoutGuard(t *testing.T) {
+	block := GenerateFishHookBlock(nil)
+
+	if !strings.Contains(block, blockStart) {
+		t.Error("fish block should contain start marker")
+	}
+	if !strings.Contains(block, blockEnd) {
+		t.Error("fish block should contain end marker")
+	}
+	if !strings.Contains(block, "function zp") {
+		t.Error("fish block should contain zp function")
+	}
+	if !strings.Contains(block, "ZPICK_AUTORUN") {
+		t.Error("fish block should contain autorun check")
+	}
+	if strings.Contains(block, "_zpick_guard") {
+		t.Error("fish block without guard should not contain guard function")
+	}
+}
+
+func TestHasGuardInFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "testrc")
+
+	// File doesn't exist
+	if hasGuardInFile(path) {
+		t.Error("should return false for non-existent file")
+	}
+
+	// File without guard
+	block := GenerateHookBlock(nil)
+	os.WriteFile(path, []byte(block), 0644)
+	if hasGuardInFile(path) {
+		t.Error("should return false for hook without guard")
+	}
+
+	// File with guard
+	blockWithGuard := GenerateHookBlock([]string{"claude", "codex"})
+	os.WriteFile(path, []byte(blockWithGuard), 0644)
+	if !hasGuardInFile(path) {
+		t.Error("should return true for hook with guard")
 	}
 }
 

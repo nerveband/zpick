@@ -43,7 +43,7 @@ On macOS, `install-hook` also creates a `/usr/local/bin/zp` symlink so `zp` is i
 To remove the hook:
 
 ```bash
-zp install-hook --remove
+zp remove-hook
 ```
 
 ### Self-update
@@ -64,6 +64,12 @@ The guard is optional but useful. It wraps specific commands so that if you run 
 
 Press Enter to pick a session (the original command auto-launches inside it). Or just wait 10 seconds and the command runs normally. This is handy for AI coding tools where losing your session halfway through is annoying.
 
+To install the guard (this also installs the hook if it's missing):
+
+```bash
+zp install-guard
+```
+
 By default, the guard covers `claude`, `codex`, and `opencode`. You can change that:
 
 ```bash
@@ -72,7 +78,13 @@ zp guard --remove codex    # stop guarding codex
 zp guard --list            # see what's guarded
 ```
 
-After changing the list, re-run `zp install-hook` to update the shell functions.
+To remove just the guard wrappers (keeps the shell hook):
+
+```bash
+zp remove-guard
+```
+
+Run `zp guard` with no arguments for a full explanation of how it works.
 
 ## In-session switching
 
@@ -123,17 +135,20 @@ Press `h` for the help screen, then `l` to toggle between `numbers` and `letters
 ## CLI
 
 ```
-zp              Interactive TUI picker (default)
-zp list         List sessions (human-readable)
-zp list --json  List sessions (JSON for scripts)
-zp check        Check dependencies and available backends
-zp check --json Machine-readable dependency check
-zp attach <n>   Attach or create session
-zp kill <name>  Kill a session
-zp guard        Session guard for AI coding tools
-zp install-hook Add/update shell hook
-zp upgrade      Self-update to latest release
-zp version      Print version
+zp                Interactive TUI picker (default)
+zp list           List sessions (human-readable)
+zp list --json    List sessions (JSON for scripts)
+zp check          Check dependencies and available backends
+zp check --json   Machine-readable dependency check
+zp attach <n>     Attach or create session
+zp kill <name>    Kill a session
+zp guard          Explain session guard and show commands
+zp install-hook   Add shell hook to config
+zp install-guard  Add guard wrappers (installs hook if missing)
+zp remove-hook    Remove shell hook and guard wrappers
+zp remove-guard   Remove guard wrappers only (keeps hook)
+zp upgrade        Self-update to latest release
+zp version        Print version
 ```
 
 ## How it works

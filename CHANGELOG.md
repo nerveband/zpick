@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.9.0
+
+- **Separate hook and guard commands** — `install-hook` and `install-guard` are now distinct commands. Guard wrappers are opt-in via `zp install-guard` instead of `zp install-hook --guard`. New `remove-hook` and `remove-guard` commands for targeted removal.
+- **Guard explanation** — `zp guard` with no arguments prints a clear explanation of what guard does, how it works, and its limitations.
+- **Deprecated flags** — `--guard` and `--remove` flags on `install-hook` still work but print deprecation notices pointing to the new commands.
+
 ## v2.8.0
 
 - **Key mode toggle** — switch session labels between numbers-first (`1-9,a-y`) and letters-first (`a-y,1-9`). Useful on mobile keyboards where letters are the default view. Press `h` then `l` to toggle. Saved to `~/.config/zpick/keys`.

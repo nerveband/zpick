@@ -1,17 +1,34 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/nerveband/zpick/internal/hook"
 )
 
 func runInstallHook() error {
-	// Check for --remove flag
 	for _, arg := range os.Args[2:] {
-		if arg == "--remove" {
+		switch arg {
+		case "--remove":
+			fmt.Fprintln(os.Stderr, "  note: --remove is deprecated, use 'zp remove-hook' instead")
 			return hook.Remove()
+		case "--guard":
+			fmt.Fprintln(os.Stderr, "  note: --guard is deprecated, use 'zp install-guard' instead")
+			return hook.InstallGuard()
 		}
 	}
-	return hook.Install()
+	return hook.Install(false)
+}
+
+func runInstallGuard() error {
+	return hook.InstallGuard()
+}
+
+func runRemoveHook() error {
+	return hook.Remove()
+}
+
+func runRemoveGuard() error {
+	return hook.RemoveGuard()
 }

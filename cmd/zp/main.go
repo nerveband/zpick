@@ -80,6 +80,21 @@ func main() {
 			fmt.Fprintf(os.Stderr, "zp: %v\n", err)
 			os.Exit(1)
 		}
+	case "install-guard":
+		if err := runInstallGuard(); err != nil {
+			fmt.Fprintf(os.Stderr, "zp: %v\n", err)
+			os.Exit(1)
+		}
+	case "remove-hook":
+		if err := runRemoveHook(); err != nil {
+			fmt.Fprintf(os.Stderr, "zp: %v\n", err)
+			os.Exit(1)
+		}
+	case "remove-guard":
+		if err := runRemoveGuard(); err != nil {
+			fmt.Fprintf(os.Stderr, "zp: %v\n", err)
+			os.Exit(1)
+		}
 	case "upgrade":
 		if err := runUpgrade(); err != nil {
 			fmt.Fprintf(os.Stderr, "zp: %v\n", err)
@@ -124,7 +139,8 @@ func shouldCheckUpdates(args []string) bool {
 		return false
 	}
 	switch args[0] {
-	case "version", "upgrade", "--help", "-h", "help", "guard", "autorun", "resume":
+	case "version", "upgrade", "--help", "-h", "help", "guard", "autorun", "resume",
+		"install-guard", "remove-hook", "remove-guard":
 		return false
 	}
 	for _, arg := range args[1:] {
@@ -139,13 +155,16 @@ func printUsage() {
 	fmt.Println(`zp — session launcher
 
 Usage:
-  zp              Interactive TUI picker (default)
-  zp list         List sessions (--json for machine-readable)
-  zp check        Check dependencies (--json for machine-readable)
-  zp attach <n>   Attach or create session
-  zp kill <name>  Kill a session
-  zp guard        Session guard for AI coding tools
-  zp install-hook Add shell hook to .zshrc/.bashrc/.config/fish
-  zp upgrade      Upgrade to the latest version
-  zp version      Print version`)
+  zp                Interactive TUI picker (default)
+  zp list           List sessions (--json for machine-readable)
+  zp check          Check dependencies (--json for machine-readable)
+  zp attach <n>     Attach or create session
+  zp kill <name>    Kill a session
+  zp guard          Explain session guard and show commands
+  zp install-hook   Add shell hook to .zshrc/.bashrc/.config/fish
+  zp install-guard  Add guard wrappers (installs hook if missing)
+  zp remove-hook    Remove shell hook and guard wrappers
+  zp remove-guard   Remove guard wrappers only (keeps hook)
+  zp upgrade        Upgrade to the latest version
+  zp version        Print version`)
 }

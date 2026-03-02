@@ -94,24 +94,29 @@ func GenerateHookBlock(apps []string) string {
 	return b.String()
 }
 
-// Install adds the zpick guard hook to the appropriate shell config file.
-func Install() error {
+// Install adds the zpick shell hook to the appropriate shell config file.
+// When withGuard is true, guard wrappers for configured apps are included.
+func Install(withGuard bool) error {
 	shell := detectShell()
 	var err error
 	switch shell {
 	case "zsh":
-		err = installShell(zshrcPath())
+		err = installShell(zshrcPath(), withGuard)
 	case "bash":
-		err = installShell(bashrcPath())
+		err = installShell(bashrcPath(), withGuard)
 	case "fish":
-		err = installFish()
+		err = installFish(withGuard)
 	default:
-		apps, _ := guard.ReadConfig()
+		var apps []string
+		if withGuard {
+			apps, _ = guard.ReadConfig()
+		}
 		block := GenerateHookBlock(apps)
 		return fmt.Errorf("unsupported shell: %s\nManually add this to your shell config:\n\n%s", shell, block)
 	}
 	if err == nil {
 		InstallSymlink()
+		fmt.Println("  to remove: zp remove-hook")
 	}
 	return err
 }
@@ -132,10 +137,10 @@ func Remove() error {
 }
 
 // installShell installs the hook block into a shell config file.
-// Guard wrappers are only included if guard.conf exists with apps listed.
-func installShell(path string) error {
+// Guard wrappers are only included when withGuard is true.
+func installShell(path string, withGuard bool) error {
 	var apps []string
-	if _, err := os.Stat(guard.ConfigPath()); err == nil {
+	if withGuard {
 		apps, _ = guard.ReadConfig()
 	}
 
@@ -174,7 +179,12 @@ func installShell(path string) error {
 	}
 	fmt.Fprintf(f, "%s\n", block)
 
-	fmt.Printf("  installed guard hook in %s\n", path)
+	fmt.Printf("  installed shell hook in %s\n", path)
+	fmt.Println("    - zp() function (session picker launcher)")
+	if len(apps) > 0 {
+		fmt.Printf("    - guard wrappers for: %s\n", strings.Join(apps, ", "))
+		fmt.Println("      (ensures these tools run inside a session)")
+	}
 	return nil
 }
 
@@ -288,6 +298,68 @@ func appendTermFix(path string) {
 
 	fmt.Fprintf(f, "\n%s\n", termLine)
 	fmt.Println("  added TERM=xterm-ghostty (ensures colors work in zmosh sessions)")
+}
+
+// HasHookInstalled checks if any zpick hook is installed in the current shell's config.
+func HasHookInstalled() bool {
+	shell := detectShell()
+	switch shell {
+	case "zsh":
+		return hasHook(zshrcPath())
+	case "bash":
+		return hasHook(bashrcPath())
+	case "fish":
+		path := fishConfigPath()
+		_, err := os.Stat(path)
+		return err == nil
+	default:
+		return false
+	}
+}
+
+// HasGuardInstalled checks if guard wrappers are present in the installed hook.
+func HasGuardInstalled() bool {
+	shell := detectShell()
+	switch shell {
+	case "zsh":
+		return hasGuardInFile(zshrcPath())
+	case "bash":
+		return hasGuardInFile(bashrcPath())
+	case "fish":
+		return hasGuardInFile(fishConfigPath())
+	default:
+		return false
+	}
+}
+
+// hasGuardInFile checks if the guard function is present in a file.
+func hasGuardInFile(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(data), "_zpick_guard")
+}
+
+// InstallGuard installs guard wrappers, adding the hook first if missing.
+func InstallGuard() error {
+	if !HasHookInstalled() {
+		fmt.Println("  hook not installed, installing first...")
+	}
+	return Install(true)
+}
+
+// RemoveGuard removes guard wrappers but keeps the shell hook.
+func RemoveGuard() error {
+	if !HasHookInstalled() {
+		fmt.Println("  hook not installed, nothing to do")
+		return nil
+	}
+	if !HasGuardInstalled() {
+		fmt.Println("  guard wrappers not installed, nothing to do")
+		return nil
+	}
+	return Install(false)
 }
 
 // removeFromFile removes hook lines (old and new style) and TERM fix from a file.

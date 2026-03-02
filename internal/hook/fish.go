@@ -79,10 +79,10 @@ func GenerateFishHookBlock(apps []string) string {
 }
 
 // installFish installs the fish hook to conf.d/.
-// Guard wrappers are only included if guard.conf exists with apps listed.
-func installFish() error {
+// Guard wrappers are only included when withGuard is true.
+func installFish(withGuard bool) error {
 	var apps []string
-	if _, err := os.Stat(guard.ConfigPath()); err == nil {
+	if withGuard {
 		apps, _ = guard.ReadConfig()
 	}
 
@@ -99,7 +99,12 @@ func installFish() error {
 		return fmt.Errorf("cannot write %s: %w", path, err)
 	}
 
-	fmt.Printf("  installed fish hook in %s\n", path)
+	fmt.Printf("  installed shell hook in %s\n", path)
+	fmt.Println("    - zp() function (session picker launcher)")
+	if len(apps) > 0 {
+		fmt.Printf("    - guard wrappers for: %s\n", strings.Join(apps, ", "))
+		fmt.Println("      (ensures these tools run inside a session)")
+	}
 	return nil
 }
 
