@@ -12,13 +12,14 @@ import (
 
 // showHelpConfig renders the help/config screen on tty.
 // Handles 'b' to cycle backend, 'u' to toggle UDP. Esc returns to picker.
-func showHelpConfig(tty *os.File, b backend.Backend, version string) {
+// Returns the (possibly changed) backend.
+func showHelpConfig(tty *os.File, b backend.Backend, version string) backend.Backend {
 	for {
 		renderHelp(tty, b, version)
 
 		oldState, err := term.MakeRaw(int(tty.Fd()))
 		if err != nil {
-			return
+			return b
 		}
 
 		buf := make([]byte, 3)
@@ -26,14 +27,14 @@ func showHelpConfig(tty *os.File, b backend.Backend, version string) {
 		term.Restore(int(tty.Fd()), oldState)
 
 		if err != nil {
-			return
+			return b
 		}
 
 		key := buf[0]
 
 		// Esc or Ctrl-C → back to picker
 		if n == 1 && (key == 27 || key == 3) {
-			return
+			return b
 		}
 
 		switch key {
@@ -51,6 +52,11 @@ func renderHelp(tty *os.File, b backend.Backend, version string) {
 	// Clear screen
 	fmt.Fprint(tty, "\033[2J\033[H")
 
+	width, _, _ := term.GetSize(int(tty.Fd()))
+	if width <= 0 {
+		width = 80
+	}
+
 	fmt.Fprintf(tty, "  %szp help%s\n\n", boldCyan, reset)
 
 	// Keys section
@@ -59,10 +65,18 @@ func renderHelp(tty *os.File, b backend.Backend, version string) {
 	if backend.ReadKeyMode() == "letters" {
 		keyRange = "a-y,1-9"
 	}
-	fmt.Fprintf(tty, "    %s%s%s  attach session       %senter%s  new session\n", boldYel, keyRange, reset, boldGrn, reset)
-	fmt.Fprintf(tty, "    %sc%s        custom name           %sd%s      +date name\n", magenta, reset, cyan, reset)
-	fmt.Fprintf(tty, "    %sz%s        pick dir (zoxide)     %sk%s      kill session\n", magenta, reset, red, reset)
-	fmt.Fprintf(tty, "    %sh%s        this screen           %sesc%s    skip\n", cyan, reset, yellow, reset)
+	if width >= 60 {
+		fmt.Fprintf(tty, "    %s%-7s%s %-18s %s%-5s%s %s\n", boldYel, keyRange, reset, "attach session", boldGrn, "enter", reset, "new session")
+		fmt.Fprintf(tty, "    %sc%s       %-18s %s%-5s%s %s\n", magenta, reset, "custom name", cyan, "d", reset, "+date name")
+		fmt.Fprintf(tty, "    %sz%s       %-18s %s%-5s%s %s\n", magenta, reset, "pick dir (zoxide)", red, "k", reset, "kill session")
+		fmt.Fprintf(tty, "    %sh%s       %-18s %s%-5s%s %s\n", cyan, reset, "this screen", yellow, "esc", reset, "skip")
+	} else {
+		fmt.Fprintf(tty, "    %s%s%s  attach session\n", boldYel, keyRange, reset)
+		fmt.Fprintf(tty, "    %senter%s  new session\n", boldGrn, reset)
+		fmt.Fprintf(tty, "    %sc%s  custom name   %sd%s  +date name\n", magenta, reset, cyan, reset)
+		fmt.Fprintf(tty, "    %sz%s  pick dir      %sk%s  kill session\n", magenta, reset, red, reset)
+		fmt.Fprintf(tty, "    %sh%s  this screen   %sesc%s  skip\n", cyan, reset, yellow, reset)
+	}
 	fmt.Fprintln(tty)
 
 	// Config section
@@ -75,8 +89,13 @@ func renderHelp(tty *os.File, b backend.Backend, version string) {
 	// Backend
 	available := backend.Detect()
 	availStr := strings.Join(available, ", ")
-	fmt.Fprintf(tty, "    %sb%s  backend    %s%-12s%s %s[%s]%s\n",
-		magenta, reset, boldWht, b.Name(), reset, dim, availStr, reset)
+	if width >= 60 {
+		fmt.Fprintf(tty, "    %sb%s  backend    %s%-12s%s %s[%s]%s\n",
+			magenta, reset, boldWht, b.Name(), reset, dim, availStr, reset)
+	} else {
+		fmt.Fprintf(tty, "    %sb%s  backend  %s%s%s\n", magenta, reset, boldWht, b.Name(), reset)
+		fmt.Fprintf(tty, "       %s[%s]%s\n", dim, availStr, reset)
+	}
 
 	// Guard
 	apps := readGuardApps(configDir)

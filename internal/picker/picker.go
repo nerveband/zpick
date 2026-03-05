@@ -144,7 +144,7 @@ func Run(b backend.Backend, version string) (string, error) {
 			confirmAndKillAll(tty, b, sessions)
 			continue
 		case ActionHelp:
-			showHelpConfig(tty, b, version)
+			b = showHelpConfig(tty, b, version)
 			continue
 		case ActionEscape:
 			return "", nil
