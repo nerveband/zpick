@@ -11,3 +11,4 @@
 /zmosh-picker-go
 *.exe
 /dist/
+.DS_Store
