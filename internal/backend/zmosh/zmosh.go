@@ -87,7 +87,7 @@ func (z *Zmosh) Attach(name string) error {
 	return backend.ExecCommand(zmoshPath, []string{"zmosh", "attach", name})
 }
 
-func (z *Zmosh) DetachCommand() string { return "zmx detach" }
+func (z *Zmosh) DetachCommand() string { return "zmosh detach" }
 
 func (z *Zmosh) AttachCommand(name, dir string) string {
 	// Check UDP config for -r flag
