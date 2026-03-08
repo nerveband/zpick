@@ -232,7 +232,7 @@ func showPicker(tty *os.File, b backend.Backend, sessions []backend.Session, cur
 	if n == 1 && key == 27 {
 		return Action{Type: ActionEscape}, nil
 	}
-	if n == 1 && (key == 13 || key == 10) {
+	if n >= 1 && (key == 13 || key == 10) {
 		return Action{Type: ActionNew}, nil
 	}
 
@@ -353,48 +353,12 @@ func handleCustom(tty *os.File, b backend.Backend, sessions []backend.Session, i
 		return "", nil
 	}
 
-	fmt.Fprintf(tty, "\n  %senter%s %screate in ~%s  %sz%s %spick dir%s  %sesc%s %scancel%s\n\n",
-		boldGrn, reset, dim, reset,
-		magenta, reset, dim, reset,
-		yellow, reset, dim, reset)
-	fmt.Fprintf(tty, "  %s>%s ", boldCyan, reset)
-
-	oldState, err := term.MakeRaw(int(tty.Fd()))
-	if err != nil {
-		return "", err
+	fmt.Fprintf(tty, "\n  %s>%s %s%s%s\n\n", boldGrn, reset, boldWht, customName, reset)
+	if inSession {
+		switcher.Write(switcher.Target{Action: "new", Name: customName})
+		return b.DetachCommand(), nil
 	}
-	defer term.Restore(int(tty.Fd()), oldState)
-
-	buf := make([]byte, 3)
-	n, _ := tty.Read(buf)
-	term.Restore(int(tty.Fd()), oldState)
-	fmt.Fprintln(tty)
-
-	key := buf[0]
-
-	if n == 1 && (key == 13 || key == 10) {
-		fmt.Fprintf(tty, "\n  %s>%s %s%s%s\n\n", boldGrn, reset, boldWht, customName, reset)
-		if inSession {
-			switcher.Write(switcher.Target{Action: "new", Name: customName})
-			return b.DetachCommand(), nil
-		}
-		return "exec " + b.AttachCommand(customName, ""), nil
-	}
-
-	if key == 'z' {
-		dir, err := runZoxide(tty)
-		if err != nil || dir == "" {
-			return "", nil
-		}
-		fmt.Fprintf(tty, "\n  %s>%s %s%s%s %s%s%s\n\n", boldGrn, reset, boldWht, customName, reset, dim, dir, reset)
-		if inSession {
-			switcher.Write(switcher.Target{Action: "new", Name: customName, Dir: dir})
-			return b.DetachCommand(), nil
-		}
-		return fmt.Sprintf("cd %q && exec %s", dir, b.AttachCommand(customName, "")), nil
-	}
-
-	return "", nil
+	return "exec " + b.AttachCommand(customName, ""), nil
 }
 
 // readLineRaw reads a line in raw mode, supporting escape to cancel and backspace.
