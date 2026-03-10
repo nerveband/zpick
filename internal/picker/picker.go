@@ -90,7 +90,7 @@ func Run(b backend.Backend, version string) (string, error) {
 				switcher.Write(switcher.Target{Action: "attach", Name: action.Name})
 				return b.DetachCommand(), nil
 			}
-			return "exec " + b.AttachCommand(action.Name, ""), nil
+			return sessionExec(b, action.Name, ""), nil
 		case ActionNew:
 			cwd, _ := os.Getwd()
 			name := CounterName(cwd, sessions)
@@ -99,7 +99,7 @@ func Run(b backend.Backend, version string) (string, error) {
 				switcher.Write(switcher.Target{Action: "new", Name: name})
 				return b.DetachCommand(), nil
 			}
-			return "exec " + b.AttachCommand(name, ""), nil
+			return sessionExec(b, name, ""), nil
 		case ActionNewDate:
 			cwd, _ := os.Getwd()
 			name := DateName(cwd)
@@ -108,7 +108,7 @@ func Run(b backend.Backend, version string) (string, error) {
 				switcher.Write(switcher.Target{Action: "new", Name: name})
 				return b.DetachCommand(), nil
 			}
-			return "exec " + b.AttachCommand(name, ""), nil
+			return sessionExec(b, name, ""), nil
 		case ActionCustom:
 			cmd, err := handleCustom(tty, b, sessions, inSession)
 			if err != nil {
@@ -129,7 +129,7 @@ func Run(b backend.Backend, version string) (string, error) {
 				switcher.Write(switcher.Target{Action: "new", Name: name, Dir: dir})
 				return b.DetachCommand(), nil
 			}
-			return fmt.Sprintf("cd %q && exec %s", dir, b.AttachCommand(name, "")), nil
+			return sessionExec(b, name, fmt.Sprintf("cd %q", dir)), nil
 		case ActionKill:
 			if action.Name == "" {
 				continue // no session selected, redraw
@@ -358,7 +358,7 @@ func handleCustom(tty *os.File, b backend.Backend, sessions []backend.Session, i
 		switcher.Write(switcher.Target{Action: "new", Name: customName})
 		return b.DetachCommand(), nil
 	}
-	return "exec " + b.AttachCommand(customName, ""), nil
+	return sessionExec(b, customName, ""), nil
 }
 
 // readLineRaw reads a line in raw mode, supporting escape to cancel and backspace.
@@ -402,6 +402,18 @@ func readLineRaw(tty *os.File) (string, bool) {
 			fmt.Fprintf(tty, "%c", key)
 		}
 	}
+}
+
+// sessionExec builds an exec command that sets ZPICK_SESSION so the inner shell's
+// guard check won't re-trigger the picker. Some backends (e.g. zmosh) don't set
+// their session env var in the child shell, so ZPICK_SESSION acts as a universal
+// "already inside a session" marker.
+func sessionExec(b backend.Backend, name, prefix string) string {
+	cmd := fmt.Sprintf("ZPICK_SESSION=%q exec %s", name, b.AttachCommand(name, ""))
+	if prefix != "" {
+		return prefix + " && " + cmd
+	}
+	return cmd
 }
 
 func runZoxide(tty *os.File) (string, error) {

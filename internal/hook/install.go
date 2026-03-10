@@ -16,8 +16,9 @@ const (
 )
 
 // sessionEnvCheck builds the bash/zsh condition checking all session env vars.
+// Includes ZPICK_SESSION (zpick's own marker) in addition to backend-specific vars.
 func sessionEnvCheck() string {
-	vars := backend.AllSessionEnvVars()
+	vars := append(backend.AllSessionEnvVars(), "ZPICK_SESSION")
 	var parts []string
 	for _, v := range vars {
 		parts = append(parts, fmt.Sprintf(`-z "$%s"`, v))

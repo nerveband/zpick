@@ -21,8 +21,9 @@ func fishConfigPath() string {
 }
 
 // fishSessionEnvCheck builds the fish condition checking all session env vars.
+// Includes ZPICK_SESSION (zpick's own marker) in addition to backend-specific vars.
 func fishSessionEnvCheck() string {
-	vars := backend.AllSessionEnvVars()
+	vars := append(backend.AllSessionEnvVars(), "ZPICK_SESSION")
 	var parts []string
 	for _, v := range vars {
 		parts = append(parts, fmt.Sprintf(`test -z "$%s"`, v))
