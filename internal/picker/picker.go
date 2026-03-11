@@ -409,7 +409,7 @@ func readLineRaw(tty *os.File) (string, bool) {
 // their session env var in the child shell, so ZPICK_SESSION acts as a universal
 // "already inside a session" marker.
 func sessionExec(b backend.Backend, name, prefix string) string {
-	cmd := fmt.Sprintf("ZPICK_SESSION=%q exec %s", name, b.AttachCommand(name, ""))
+	cmd := fmt.Sprintf("ZPICK_SESSION=%q %s", name, b.AttachCommand(name, ""))
 	if prefix != "" {
 		return prefix + " && " + cmd
 	}

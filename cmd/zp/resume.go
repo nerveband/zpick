@@ -26,9 +26,9 @@ func runResume() error {
 	switch target.Action {
 	case "attach", "new":
 		if target.Dir != "" {
-			fmt.Printf("cd %q && exec %s", target.Dir, cmd)
+			fmt.Printf("cd %q && ZPICK_SESSION=%q %s", target.Dir, target.Name, cmd)
 		} else {
-			fmt.Printf("exec %s", cmd)
+			fmt.Printf("ZPICK_SESSION=%q %s", target.Name, cmd)
 		}
 	default:
 		// Unknown action — silent, not an error.
