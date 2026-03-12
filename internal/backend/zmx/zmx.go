@@ -3,7 +3,6 @@ package zmx
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -21,8 +20,8 @@ type Zmx struct{}
 
 func New() *Zmx { return &Zmx{} }
 
-func (z *Zmx) Name() string         { return "zmx" }
-func (z *Zmx) BinaryName() string   { return "zmx" }
+func (z *Zmx) Name() string          { return "zmx" }
+func (z *Zmx) BinaryName() string    { return "zmx" }
 func (z *Zmx) SessionEnvVar() string { return "ZMX_SESSION" }
 
 func (z *Zmx) InSession() bool {
@@ -34,7 +33,7 @@ func (z *Zmx) CurrentSessionName() string {
 }
 
 func (z *Zmx) Available() (bool, error) {
-	_, err := exec.LookPath("zmx")
+	_, err := backend.LookPath("zmx")
 	if err != nil {
 		return false, fmt.Errorf("zmx not found in PATH")
 	}
@@ -42,7 +41,7 @@ func (z *Zmx) Available() (bool, error) {
 }
 
 func (z *Zmx) Version() (string, error) {
-	out, err := exec.Command("zmx", "version").Output()
+	out, err := backend.Command("zmx", "version").Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to run zmx version: %w", err)
 	}
@@ -58,7 +57,7 @@ func (z *Zmx) Version() (string, error) {
 }
 
 func (z *Zmx) List() ([]backend.Session, error) {
-	out, err := exec.Command("zmx", "list").Output()
+	out, err := backend.Command("zmx", "list").Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to run zmx list: %w", err)
 	}
@@ -79,17 +78,17 @@ func (z *Zmx) FastList() ([]backend.Session, error) {
 }
 
 func (z *Zmx) Attach(name string) error {
-	zmxPath, err := exec.LookPath("zmx")
+	zmxPath, err := backend.LookPath("zmx")
 	if err != nil {
 		return fmt.Errorf("zmx not found: %w", err)
 	}
 	return backend.ExecCommand(zmxPath, []string{"zmx", "attach", name})
 }
 
-func (z *Zmx) DetachCommand() string { return "zmx detach" }
+func (z *Zmx) DetachCommand() string { return backend.ShellCommand("zmx") + " detach" }
 
 func (z *Zmx) AttachCommand(name, dir string) string {
-	cmd := fmt.Sprintf(`zmx attach "%s"`, name)
+	cmd := fmt.Sprintf(`%s attach "%s"`, backend.ShellCommand("zmx"), name)
 	if dir != "" {
 		return fmt.Sprintf(`cd "%s" && %s`, dir, cmd)
 	}
@@ -97,7 +96,7 @@ func (z *Zmx) AttachCommand(name, dir string) string {
 }
 
 func (z *Zmx) Kill(name string) error {
-	if err := exec.Command("zmx", "kill", name).Run(); err != nil {
+	if err := backend.Command("zmx", "kill", name).Run(); err != nil {
 		return err
 	}
 	dir, err := zmoshpkg.ResolveZmxDir()

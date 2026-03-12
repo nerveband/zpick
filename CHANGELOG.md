@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.0.10
+
+- **Find backends before shell PATH setup finishes** — backend detection and command execution now search common install locations like `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin`, and `~/.cargo/bin`, so early autostart can still find tmux/zellij/zmx/shpool even if your shell adds those paths later.
+- **Emit shell commands that still work during early autostart** — when a backend is only discoverable from those fallback locations, `zp` now prints an absolute backend path in the shell command it returns, so the immediate `exec` step succeeds before the rest of the shell config runs.
+- **Add fallback lookup coverage** — new backend lookup tests lock in the no-PATH behavior that broke remote early startup on macOS/Homebrew setups.
+
 ## v3.0.9
 
 - **Fix early-hook binary resolution** — zsh and bash hooks now capture the external `zp` path before defining the `zp()` shell function, so autostart still works even when `~/.local/bin` is added to `PATH` later in the shell config.

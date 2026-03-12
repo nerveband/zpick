@@ -3,7 +3,6 @@ package backend
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -90,11 +89,11 @@ func ReadUDP() (enabled bool, host string) {
 	return
 }
 
-// Detect returns the names of all available backends (binaries found in PATH).
+// Detect returns the names of all available backends.
 func Detect() []string {
 	var found []string
 	for _, name := range validBackends {
-		if _, err := exec.LookPath(name); err == nil {
+		if _, err := LookPath(name); err == nil {
 			found = append(found, name)
 		}
 	}

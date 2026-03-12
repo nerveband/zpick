@@ -3,7 +3,6 @@ package zellij
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/nerveband/zpick/internal/backend"
@@ -18,8 +17,8 @@ type Zellij struct{}
 
 func New() *Zellij { return &Zellij{} }
 
-func (z *Zellij) Name() string         { return "zellij" }
-func (z *Zellij) BinaryName() string   { return "zellij" }
+func (z *Zellij) Name() string          { return "zellij" }
+func (z *Zellij) BinaryName() string    { return "zellij" }
 func (z *Zellij) SessionEnvVar() string { return "ZELLIJ" }
 
 func (z *Zellij) InSession() bool {
@@ -31,7 +30,7 @@ func (z *Zellij) CurrentSessionName() string {
 }
 
 func (z *Zellij) Available() (bool, error) {
-	_, err := exec.LookPath("zellij")
+	_, err := backend.LookPath("zellij")
 	if err != nil {
 		return false, fmt.Errorf("zellij not found in PATH")
 	}
@@ -39,7 +38,7 @@ func (z *Zellij) Available() (bool, error) {
 }
 
 func (z *Zellij) Version() (string, error) {
-	out, err := exec.Command("zellij", "--version").Output()
+	out, err := backend.Command("zellij", "--version").Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to run zellij --version: %w", err)
 	}
@@ -47,14 +46,14 @@ func (z *Zellij) Version() (string, error) {
 }
 
 func (z *Zellij) List() ([]backend.Session, error) {
-	out, err := exec.Command("zellij", "list-sessions", "--short", "--no-formatting").CombinedOutput()
+	out, err := backend.Command("zellij", "list-sessions", "--short", "--no-formatting").CombinedOutput()
 	if err != nil {
 		// zellij list-sessions returns exit code 1 when no sessions exist
 		if strings.Contains(string(out), "No active") || strings.TrimSpace(string(out)) == "" {
 			return nil, nil
 		}
 		// Try without --short --no-formatting flags (older zellij versions)
-		out, err = exec.Command("zellij", "list-sessions").CombinedOutput()
+		out, err = backend.Command("zellij", "list-sessions").CombinedOutput()
 		if err != nil {
 			return nil, fmt.Errorf("failed to run zellij list-sessions: %w", err)
 		}
@@ -68,17 +67,17 @@ func (z *Zellij) FastList() ([]backend.Session, error) {
 }
 
 func (z *Zellij) Attach(name string) error {
-	zellijPath, err := exec.LookPath("zellij")
+	zellijPath, err := backend.LookPath("zellij")
 	if err != nil {
 		return fmt.Errorf("zellij not found: %w", err)
 	}
 	return backend.ExecCommand(zellijPath, []string{"zellij", "attach", name})
 }
 
-func (z *Zellij) DetachCommand() string { return "zellij action detach" }
+func (z *Zellij) DetachCommand() string { return backend.ShellCommand("zellij") + " action detach" }
 
 func (z *Zellij) AttachCommand(name, dir string) string {
-	cmd := fmt.Sprintf(`zellij attach "%s"`, name)
+	cmd := fmt.Sprintf(`%s attach "%s"`, backend.ShellCommand("zellij"), name)
 	if dir != "" {
 		return fmt.Sprintf(`cd "%s" && %s`, dir, cmd)
 	}
@@ -86,7 +85,7 @@ func (z *Zellij) AttachCommand(name, dir string) string {
 }
 
 func (z *Zellij) Kill(name string) error {
-	return exec.Command("zellij", "kill-session", name).Run()
+	return backend.Command("zellij", "kill-session", name).Run()
 }
 
 // parseSessions parses the output of zellij list-sessions.

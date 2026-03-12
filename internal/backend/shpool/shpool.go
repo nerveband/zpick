@@ -3,7 +3,6 @@ package shpool
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/nerveband/zpick/internal/backend"
@@ -18,8 +17,8 @@ type Shpool struct{}
 
 func New() *Shpool { return &Shpool{} }
 
-func (s *Shpool) Name() string         { return "shpool" }
-func (s *Shpool) BinaryName() string   { return "shpool" }
+func (s *Shpool) Name() string          { return "shpool" }
+func (s *Shpool) BinaryName() string    { return "shpool" }
 func (s *Shpool) SessionEnvVar() string { return "SHPOOL_SESSION_NAME" }
 
 func (s *Shpool) InSession() bool {
@@ -31,19 +30,19 @@ func (s *Shpool) CurrentSessionName() string {
 }
 
 func (s *Shpool) Available() (bool, error) {
-	_, err := exec.LookPath("shpool")
+	_, err := backend.LookPath("shpool")
 	if err != nil {
 		return false, fmt.Errorf("shpool not found in PATH")
 	}
 	// Also check that daemon is running
-	if err := exec.Command("shpool", "status").Run(); err != nil {
+	if err := backend.Command("shpool", "status").Run(); err != nil {
 		return false, fmt.Errorf("shpool daemon not running (start with: shpool daemon)")
 	}
 	return true, nil
 }
 
 func (s *Shpool) Version() (string, error) {
-	out, err := exec.Command("shpool", "version").Output()
+	out, err := backend.Command("shpool", "version").Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to run shpool version: %w", err)
 	}
@@ -51,7 +50,7 @@ func (s *Shpool) Version() (string, error) {
 }
 
 func (s *Shpool) List() ([]backend.Session, error) {
-	out, err := exec.Command("shpool", "list").Output()
+	out, err := backend.Command("shpool", "list").Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to run shpool list: %w", err)
 	}
@@ -64,17 +63,17 @@ func (s *Shpool) FastList() ([]backend.Session, error) {
 }
 
 func (s *Shpool) Attach(name string) error {
-	shpoolPath, err := exec.LookPath("shpool")
+	shpoolPath, err := backend.LookPath("shpool")
 	if err != nil {
 		return fmt.Errorf("shpool not found: %w", err)
 	}
 	return backend.ExecCommand(shpoolPath, []string{"shpool", "attach", name})
 }
 
-func (s *Shpool) DetachCommand() string { return "shpool detach" }
+func (s *Shpool) DetachCommand() string { return backend.ShellCommand("shpool") + " detach" }
 
 func (s *Shpool) AttachCommand(name, dir string) string {
-	cmd := fmt.Sprintf(`shpool attach "%s"`, name)
+	cmd := fmt.Sprintf(`%s attach "%s"`, backend.ShellCommand("shpool"), name)
 	if dir != "" {
 		return fmt.Sprintf(`cd "%s" && %s`, dir, cmd)
 	}
@@ -82,7 +81,7 @@ func (s *Shpool) AttachCommand(name, dir string) string {
 }
 
 func (s *Shpool) Kill(name string) error {
-	return exec.Command("shpool", "kill", name).Run()
+	return backend.Command("shpool", "kill", name).Run()
 }
 
 // parseShpoolSessions parses the output of shpool list.

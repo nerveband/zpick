@@ -3,7 +3,6 @@ package check
 import (
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"runtime"
 	"strings"
 
@@ -58,12 +57,12 @@ func Run() Result {
 }
 
 func checkDep(name, versionFlag string) DepStatus {
-	path, err := exec.LookPath(name)
+	path, err := backend.LookPath(name)
 	if err != nil {
 		return DepStatus{Installed: false}
 	}
 	status := DepStatus{Installed: true, Path: path}
-	if out, err := exec.Command(name, versionFlag).Output(); err == nil {
+	if out, err := backend.Command(name, versionFlag).Output(); err == nil {
 		ver := strings.TrimSpace(string(out))
 		if idx := strings.IndexByte(ver, '\n'); idx >= 0 {
 			ver = strings.TrimSpace(ver[:idx])
@@ -81,7 +80,7 @@ func checkDep(name, versionFlag string) DepStatus {
 
 // HasBrew checks if Homebrew is available.
 func HasBrew() bool {
-	_, err := exec.LookPath("brew")
+	_, err := backend.LookPath("brew")
 	return err == nil
 }
 

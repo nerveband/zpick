@@ -19,8 +19,8 @@ type Tmux struct{}
 
 func New() *Tmux { return &Tmux{} }
 
-func (t *Tmux) Name() string         { return "tmux" }
-func (t *Tmux) BinaryName() string   { return "tmux" }
+func (t *Tmux) Name() string          { return "tmux" }
+func (t *Tmux) BinaryName() string    { return "tmux" }
 func (t *Tmux) SessionEnvVar() string { return "TMUX" }
 
 func (t *Tmux) InSession() bool {
@@ -28,7 +28,7 @@ func (t *Tmux) InSession() bool {
 }
 
 func (t *Tmux) CurrentSessionName() string {
-	out, err := exec.Command("tmux", "display-message", "-p", "#S").Output()
+	out, err := backend.Command("tmux", "display-message", "-p", "#S").Output()
 	if err != nil {
 		return ""
 	}
@@ -36,7 +36,7 @@ func (t *Tmux) CurrentSessionName() string {
 }
 
 func (t *Tmux) Available() (bool, error) {
-	_, err := exec.LookPath("tmux")
+	_, err := backend.LookPath("tmux")
 	if err != nil {
 		return false, fmt.Errorf("tmux not found in PATH")
 	}
@@ -44,7 +44,7 @@ func (t *Tmux) Available() (bool, error) {
 }
 
 func (t *Tmux) Version() (string, error) {
-	out, err := exec.Command("tmux", "-V").Output()
+	out, err := backend.Command("tmux", "-V").Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to run tmux -V: %w", err)
 	}
@@ -57,7 +57,7 @@ func (t *Tmux) Version() (string, error) {
 }
 
 func (t *Tmux) List() ([]backend.Session, error) {
-	out, err := exec.Command("tmux", "list-sessions", "-F",
+	out, err := backend.Command("tmux", "list-sessions", "-F",
 		"#{session_name}\t#{session_attached}\t#{pane_current_path}").Output()
 	if err != nil {
 		// tmux returns error when server not running (no sessions)
@@ -75,24 +75,25 @@ func (t *Tmux) FastList() ([]backend.Session, error) {
 }
 
 func (t *Tmux) Attach(name string) error {
-	tmuxPath, err := exec.LookPath("tmux")
+	tmuxPath, err := backend.LookPath("tmux")
 	if err != nil {
 		return fmt.Errorf("tmux not found: %w", err)
 	}
 	return backend.ExecCommand(tmuxPath, []string{"tmux", "new-session", "-A", "-s", name})
 }
 
-func (t *Tmux) DetachCommand() string { return "tmux detach-client" }
+func (t *Tmux) DetachCommand() string { return backend.ShellCommand("tmux") + " detach-client" }
 
 func (t *Tmux) AttachCommand(name, dir string) string {
+	tmux := backend.ShellCommand("tmux")
 	if dir != "" {
-		return fmt.Sprintf(`tmux new-session -A -s "%s" -c "%s"`, name, dir)
+		return fmt.Sprintf(`%s new-session -A -s "%s" -c "%s"`, tmux, name, dir)
 	}
-	return fmt.Sprintf(`tmux new-session -A -s "%s"`, name)
+	return fmt.Sprintf(`%s new-session -A -s "%s"`, tmux, name)
 }
 
 func (t *Tmux) Kill(name string) error {
-	return exec.Command("tmux", "kill-session", "-t", name).Run()
+	return backend.Command("tmux", "kill-session", "-t", name).Run()
 }
 
 // parseTmuxSessions parses the tab-separated output of tmux list-sessions.

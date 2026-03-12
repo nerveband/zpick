@@ -3,7 +3,6 @@ package zmosh
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -23,8 +22,8 @@ func New() *Zmosh {
 	return &Zmosh{}
 }
 
-func (z *Zmosh) Name() string        { return "zmosh" }
-func (z *Zmosh) BinaryName() string  { return "zmosh" }
+func (z *Zmosh) Name() string          { return "zmosh" }
+func (z *Zmosh) BinaryName() string    { return "zmosh" }
 func (z *Zmosh) SessionEnvVar() string { return "ZMX_SESSION" }
 
 func (z *Zmosh) InSession() bool {
@@ -36,7 +35,7 @@ func (z *Zmosh) CurrentSessionName() string {
 }
 
 func (z *Zmosh) Available() (bool, error) {
-	_, err := exec.LookPath("zmosh")
+	_, err := backend.LookPath("zmosh")
 	if err != nil {
 		return false, fmt.Errorf("zmosh not found in PATH")
 	}
@@ -44,7 +43,7 @@ func (z *Zmosh) Available() (bool, error) {
 }
 
 func (z *Zmosh) Version() (string, error) {
-	out, err := exec.Command("zmosh", "version").Output()
+	out, err := backend.Command("zmosh", "version").Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to run zmosh version: %w", err)
 	}
@@ -60,7 +59,7 @@ func (z *Zmosh) Version() (string, error) {
 }
 
 func (z *Zmosh) List() ([]backend.Session, error) {
-	out, err := exec.Command("zmosh", "list").Output()
+	out, err := backend.Command("zmosh", "list").Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to run zmosh list: %w", err)
 	}
@@ -80,23 +79,24 @@ func (z *Zmosh) FastList() ([]backend.Session, error) {
 }
 
 func (z *Zmosh) Attach(name string) error {
-	zmoshPath, err := exec.LookPath("zmosh")
+	zmoshPath, err := backend.LookPath("zmosh")
 	if err != nil {
 		return fmt.Errorf("zmosh not found: %w", err)
 	}
 	return backend.ExecCommand(zmoshPath, []string{"zmosh", "attach", name})
 }
 
-func (z *Zmosh) DetachCommand() string { return "zmx detach" }
+func (z *Zmosh) DetachCommand() string { return backend.ShellCommand("zmx") + " detach" }
 
 func (z *Zmosh) AttachCommand(name, dir string) string {
 	// Check UDP config for -r flag
 	enabled, host := backend.ReadUDP()
+	zmosh := backend.ShellCommand("zmosh")
 	var attachCmd string
 	if enabled && host != "" {
-		attachCmd = fmt.Sprintf(`zmosh attach -r %s "%s"`, host, name)
+		attachCmd = fmt.Sprintf(`%s attach -r %s "%s"`, zmosh, host, name)
 	} else {
-		attachCmd = fmt.Sprintf(`zmosh attach "%s"`, name)
+		attachCmd = fmt.Sprintf(`%s attach "%s"`, zmosh, name)
 	}
 
 	if dir != "" {
@@ -106,7 +106,7 @@ func (z *Zmosh) AttachCommand(name, dir string) string {
 }
 
 func (z *Zmosh) Kill(name string) error {
-	if err := exec.Command("zmosh", "kill", name).Run(); err != nil {
+	if err := backend.Command("zmosh", "kill", name).Run(); err != nil {
 		return err
 	}
 	// FastList reads socket files directly from the zmx directory.
