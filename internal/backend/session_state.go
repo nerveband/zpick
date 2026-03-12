@@ -30,7 +30,19 @@ func InAnySession() bool {
 // current shell startup.
 func ShouldAutostart() bool {
 	ttyReady := term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
+	if !ttyReady {
+		ttyReady = hasControllingTTY()
+	}
 	return shouldAutostartFromState(ttyReady, InAnySession(), os.Getenv("TERM"))
+}
+
+func hasControllingTTY() bool {
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		return false
+	}
+	_ = tty.Close()
+	return true
 }
 
 func shouldAutostartFromState(ttyReady, inSession bool, termName string) bool {

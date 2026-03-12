@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.0.9
+
+- **Fix early-hook binary resolution** — zsh and bash hooks now capture the external `zp` path before defining the `zp()` shell function, so autostart still works even when `~/.local/bin` is added to `PATH` later in the shell config.
+- **Keep fish aligned with the same rule** — fish now stores the resolved command path up front and executes that cached binary during early startup, matching the bash/zsh behavior.
+- **Add no-PATH shell smoke tests** — new zsh/bash/fish tests verify the hook can autostart and run `zp version` using only `~/.local/bin/zp`, which would have caught the `v3.0.8` regression.
+
 ## v3.0.8
 
 - **Make hook autostart actually happen first** — zsh, bash, and fish now launch `zp` during shell startup instead of waiting for later prompt hooks, so new shells drop into the picker before slower prompt/plugin setup.

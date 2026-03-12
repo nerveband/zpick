@@ -56,7 +56,7 @@ func TestPreviewManagedHookUpdate_DetectsChangedManagedBlock(t *testing.T) {
 	if !preview.Changed {
 		t.Fatal("expected hook preview to report changes")
 	}
-	if !strings.Contains(preview.DesiredBlock, `command zp "$@"`) {
-		t.Fatal("expected desired hook block to contain argument passthrough")
+	if !strings.Contains(preview.DesiredBlock, `"$_ZPICK_BIN" "$@"`) {
+		t.Fatal("expected desired hook block to execute the resolved binary path")
 	}
 }

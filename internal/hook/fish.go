@@ -58,7 +58,7 @@ func GenerateFishHookBlock(apps []string) string {
 
 	b.WriteString("set -g _ZPICK_BIN\n")
 	b.WriteString("if command -sq zp\n")
-	b.WriteString("  set _ZPICK_BIN zp\n")
+	b.WriteString("  set _ZPICK_BIN (command -s zp)\n")
 	b.WriteString("else if test -x \"$HOME/.local/bin/zp\"\n")
 	b.WriteString("  set _ZPICK_BIN \"$HOME/.local/bin/zp\"\n")
 	b.WriteString("else if test -x /usr/local/bin/zp\n")
@@ -66,10 +66,6 @@ func GenerateFishHookBlock(apps []string) string {
 	b.WriteString("end\n")
 
 	b.WriteString("function _zpick_exec\n")
-	b.WriteString("  if command -sq zp\n")
-	b.WriteString("    command zp $argv\n")
-	b.WriteString("    return\n")
-	b.WriteString("  end\n")
 	b.WriteString("  if test -n \"$_ZPICK_BIN\"\n")
 	b.WriteString("    $_ZPICK_BIN $argv\n")
 	b.WriteString("    return\n")

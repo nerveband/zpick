@@ -25,6 +25,9 @@ func TestGenerateHookBlock(t *testing.T) {
 	if !strings.Contains(block, "_ZPICK_BIN") {
 		t.Error("block should resolve the binary early")
 	}
+	if !strings.Contains(block, `_zpick_found="$(command -v zp 2>/dev/null)"`) {
+		t.Error("block should capture the external zp path before defining the shell function")
+	}
 	if !strings.Contains(block, "_zpick_exec") || !strings.Contains(block, "_zpick_eval") {
 		t.Error("block should contain execution helpers")
 	}
@@ -34,11 +37,8 @@ func TestGenerateHookBlock(t *testing.T) {
 	if !strings.Contains(block, `[[ "$-" == *i* ]]`) {
 		t.Error("block should only autostart in interactive shells")
 	}
-	if !strings.Contains(block, `command zp "$@"`) {
-		t.Error("block should pass arguments through to the real zp binary when it is on PATH")
-	}
 	if !strings.Contains(block, `"$_ZPICK_BIN" "$@"`) {
-		t.Error("block should fall back to the resolved binary path")
+		t.Error("block should execute the resolved binary path directly")
 	}
 	if !strings.Contains(block, `claude() { _zpick_guard claude "$@"; }`) {
 		t.Error("block should contain claude function")
@@ -225,6 +225,9 @@ func TestGenerateFishHookBlock(t *testing.T) {
 	if !strings.Contains(block, "set -g _ZPICK_BIN") {
 		t.Error("fish block should resolve the binary early")
 	}
+	if !strings.Contains(block, "set _ZPICK_BIN (command -s zp)") {
+		t.Error("fish block should capture the external zp path before defining the shell function")
+	}
 	if !strings.Contains(block, "status is-interactive") {
 		t.Error("fish block should require an interactive shell before autostart")
 	}
@@ -358,6 +361,9 @@ func TestGenerateBashHookBlock(t *testing.T) {
 	}
 	if !strings.Contains(block, `[[ "$-" == *i* ]]`) {
 		t.Error("bash block should only autostart in interactive shells")
+	}
+	if !strings.Contains(block, `_zpick_found="$(command -v zp 2>/dev/null)"`) {
+		t.Error("bash block should capture the external zp path before defining the shell function")
 	}
 	if !strings.Contains(block, "should-autostart") {
 		t.Error("bash block should use zp should-autostart")

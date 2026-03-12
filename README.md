@@ -150,19 +150,16 @@ The TUI renders to `/dev/tty` so it works even when stdout is piped. Only the fi
 ```bash
 # The zsh/bash hook adds this near the top of your shell config:
 _ZPICK_BIN=
-if command -v zp >/dev/null 2>&1; then
-  _ZPICK_BIN=zp
+if _zpick_found="$(command -v zp 2>/dev/null)"; then
+  _ZPICK_BIN="$_zpick_found"
 elif [[ -x "$HOME/.local/bin/zp" ]]; then
   _ZPICK_BIN="$HOME/.local/bin/zp"
 elif [[ -x /usr/local/bin/zp ]]; then
   _ZPICK_BIN=/usr/local/bin/zp
 fi
+unset _zpick_found
 
 _zpick_exec() {
-  if command -v zp >/dev/null 2>&1; then
-    command zp "$@"
-    return
-  fi
   if [[ -n "${_ZPICK_BIN:-}" ]]; then
     "$_ZPICK_BIN" "$@"
     return

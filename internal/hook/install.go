@@ -34,19 +34,16 @@ func generatePosixHookBlock(apps []string) string {
 
 	// Resolve the binary early so source-time autostart works before PATH setup.
 	b.WriteString("_ZPICK_BIN=\n")
-	b.WriteString("if command -v zp >/dev/null 2>&1; then\n")
-	b.WriteString("  _ZPICK_BIN=zp\n")
+	b.WriteString("if _zpick_found=\"$(command -v zp 2>/dev/null)\"; then\n")
+	b.WriteString("  _ZPICK_BIN=\"$_zpick_found\"\n")
 	b.WriteString("elif [[ -x \"$HOME/.local/bin/zp\" ]]; then\n")
 	b.WriteString("  _ZPICK_BIN=\"$HOME/.local/bin/zp\"\n")
 	b.WriteString("elif [[ -x /usr/local/bin/zp ]]; then\n")
 	b.WriteString("  _ZPICK_BIN=/usr/local/bin/zp\n")
 	b.WriteString("fi\n")
+	b.WriteString("unset _zpick_found\n")
 
 	b.WriteString("_zpick_exec() {\n")
-	b.WriteString("  if command -v zp >/dev/null 2>&1; then\n")
-	b.WriteString("    command zp \"$@\"\n")
-	b.WriteString("    return\n")
-	b.WriteString("  fi\n")
 	b.WriteString("  if [[ -n \"${_ZPICK_BIN:-}\" ]]; then\n")
 	b.WriteString("    \"$_ZPICK_BIN\" \"$@\"\n")
 	b.WriteString("    return\n")
