@@ -32,3 +32,13 @@ func runRemoveHook() error {
 func runRemoveGuard() error {
 	return hook.RemoveGuard()
 }
+
+func runPostUpgradeHook(args []string) error {
+	withGuard := false
+	for _, arg := range args {
+		if arg == "--guard" {
+			withGuard = true
+		}
+	}
+	return hook.PromptAndApplyHookUpdate(withGuard)
+}

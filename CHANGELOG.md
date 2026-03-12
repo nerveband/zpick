@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.0.7
+
+- **Handle hook-template changes during `zp upgrade`** — after updating the binary, `zp upgrade` now invokes the new binary to compare the managed shell hook block against the current template.
+- **Explain hook updates before applying them** — when the managed hook changed, `zp upgrade` now shows the replacement hook block and asks whether to apply it, instead of silently rewriting shell config or leaving stale hook code behind.
+- **Preserve manual control** — if you skip the prompt or no TTY is available, `zp upgrade` tells you which install command to run next.
+
 ## v3.0.6
 
 - **Fix shell hook argument passthrough** — the installed `zp` shell wrapper now only opens the interactive picker for bare `zp`. Commands like `zp version`, `zp upgrade`, and `zp list --json` now pass through to the real binary correctly in zsh, bash, and fish.

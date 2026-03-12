@@ -100,6 +100,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "zp: %v\n", err)
 			os.Exit(1)
 		}
+	case "post-upgrade-hook":
+		if err := runPostUpgradeHook(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "zp: %v\n", err)
+			os.Exit(1)
+		}
 	case "version":
 		fmt.Printf("zp %s\n", version)
 	case "--help", "-h", "help":
@@ -139,7 +144,7 @@ func shouldCheckUpdates(args []string) bool {
 		return false
 	}
 	switch args[0] {
-	case "version", "upgrade", "--help", "-h", "help", "guard", "autorun", "resume",
+	case "version", "upgrade", "post-upgrade-hook", "--help", "-h", "help", "guard", "autorun", "resume",
 		"install-guard", "remove-hook", "remove-guard":
 		return false
 	}
