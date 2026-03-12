@@ -149,7 +149,13 @@ The TUI renders to `/dev/tty` so it works even when stdout is piped. Only the fi
 
 ```bash
 # The hook adds this to your shell config:
-zp() { eval "$(command zp)"; }
+zp() {
+  if [[ $# -eq 0 ]]; then
+    eval "$(command zp)"
+    return
+  fi
+  command zp "$@"
+}
 ```
 
 Selecting a session outputs something like `exec tmux new-session -A -s myproject`, which the eval picks up. Pressing Escape outputs nothing, so your shell just continues.

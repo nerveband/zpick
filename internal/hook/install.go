@@ -33,7 +33,13 @@ func GenerateHookBlock(apps []string) string {
 	b.WriteByte('\n')
 
 	// Picker launcher: eval the command zp outputs
-	b.WriteString("zp() { eval \"$(command zp)\"; }\n")
+	b.WriteString("zp() {\n")
+	b.WriteString("  if [[ $# -eq 0 ]]; then\n")
+	b.WriteString("    eval \"$(command zp)\"\n")
+	b.WriteString("    return\n")
+	b.WriteString("  fi\n")
+	b.WriteString("  command zp \"$@\"\n")
+	b.WriteString("}\n")
 
 	// Autorun: defer to precmd so it runs after shell init (avoids p10k instant prompt conflict)
 	b.WriteString("if [[ -n \"$ZPICK_AUTORUN\" ]]; then\n")

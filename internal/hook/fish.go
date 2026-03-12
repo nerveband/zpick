@@ -38,7 +38,13 @@ func GenerateFishHookBlock(apps []string) string {
 	b.WriteByte('\n')
 
 	// Picker function: eval the command zp outputs
-	b.WriteString("function zp\n  eval (command zp)\nend\n")
+	b.WriteString("function zp\n")
+	b.WriteString("  if test (count $argv) -eq 0\n")
+	b.WriteString("    eval (command zp)\n")
+	b.WriteString("    return\n")
+	b.WriteString("  end\n")
+	b.WriteString("  command zp $argv\n")
+	b.WriteString("end\n")
 
 	// Autorun
 	b.WriteString("# Auto-run: launch saved command when entering a new session\n")

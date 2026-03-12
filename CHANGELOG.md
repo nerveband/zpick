@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.0.6
+
+- **Fix shell hook argument passthrough** — the installed `zp` shell wrapper now only opens the interactive picker for bare `zp`. Commands like `zp version`, `zp upgrade`, and `zp list --json` now pass through to the real binary correctly in zsh, bash, and fish.
+- **Reduce SSH/login-shell surprises** — interactive shells that auto-load the hook no longer risk hijacking scripted or command-style `zp ...` invocations into the picker.
+
 ## v3.0.5
 
 - **Fix picker false-exit on stray keys** — typing an unmapped or out-of-range key now redraws the picker instead of dropping back to the shell.

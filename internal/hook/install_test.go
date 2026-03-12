@@ -22,6 +22,9 @@ func TestGenerateHookBlock(t *testing.T) {
 	if !strings.Contains(block, "ZPICK_AUTORUN") {
 		t.Error("block should contain autorun check")
 	}
+	if !strings.Contains(block, `command zp "$@"`) {
+		t.Error("block should pass arguments through to the real zp binary")
+	}
 	if !strings.Contains(block, `claude() { _zpick_guard claude "$@"; }`) {
 		t.Error("block should contain claude function")
 	}
@@ -183,6 +186,9 @@ func TestGenerateFishHookBlock(t *testing.T) {
 	if !strings.Contains(block, "set -e ZPICK_AUTORUN") {
 		t.Error("fish block should use set -e to unset ZPICK_AUTORUN")
 	}
+	if !strings.Contains(block, "command zp $argv") {
+		t.Error("fish block should pass arguments through to the real zp binary")
+	}
 	if !strings.Contains(block, `test -z "$ZMX_SESSION"`) {
 		t.Error("fish block should check ZMX_SESSION")
 	}
@@ -271,8 +277,11 @@ func TestGenerateHookBlockWithoutGuard(t *testing.T) {
 	if !strings.Contains(block, blockEnd) {
 		t.Error("block should contain end marker")
 	}
-	if !strings.Contains(block, `zp() { eval "$(command zp)"; }`) {
+	if !strings.Contains(block, "if [[ $# -eq 0 ]]; then") {
 		t.Error("block should contain zp launcher function")
+	}
+	if !strings.Contains(block, `command zp "$@"`) {
+		t.Error("block should pass arguments through to the real zp binary")
 	}
 	if !strings.Contains(block, "ZPICK_AUTORUN") {
 		t.Error("block should contain autorun check")
@@ -296,6 +305,12 @@ func TestGenerateFishHookBlockWithoutGuard(t *testing.T) {
 	}
 	if !strings.Contains(block, "function zp") {
 		t.Error("fish block should contain zp function")
+	}
+	if !strings.Contains(block, "if test (count $argv) -eq 0") {
+		t.Error("fish block should only eval bare zp invocations")
+	}
+	if !strings.Contains(block, "command zp $argv") {
+		t.Error("fish block should pass arguments through to the real zp binary")
 	}
 	if !strings.Contains(block, "ZPICK_AUTORUN") {
 		t.Error("fish block should contain autorun check")
