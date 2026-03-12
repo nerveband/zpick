@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.0.5
+
+- **Fix picker false-exit on stray keys** — typing an unmapped or out-of-range key now redraws the picker instead of dropping back to the shell.
+- **Harden raw-key prompts** — the session guard ignores random keys until `Enter`, `Esc`, or timeout, and backend selection reprompts on invalid input instead of aborting.
+- **Add regression coverage** — tests now lock in the single-byte `Esc` handling and invalid-key retry behavior across picker, guard, and backend selection flows.
+
 ## v3.0.0
 
 - **Remove all legacy migration code** — dropped zmosh-picker hooks, old zpick markers, and guard→hook block rename migration. Fresh install only; no backward compatibility shims.

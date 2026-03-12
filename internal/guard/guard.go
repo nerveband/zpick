@@ -70,24 +70,7 @@ func waitForKey(tty *os.File, d time.Duration) keyAction {
 
 	resultCh := make(chan keyAction, 1)
 	go func() {
-		buf := make([]byte, 3)
-		n, err := tty.Read(buf)
-		if err != nil {
-			resultCh <- keyOther
-			return
-		}
-		if n >= 1 {
-			switch buf[0] {
-			case 13, 10:
-				resultCh <- keyEnter
-			case 27:
-				resultCh <- keyEscape
-			case 3:
-				resultCh <- keyEscape
-			default:
-				resultCh <- keyOther
-			}
-		}
+		resultCh <- readMeaningfulKey(tty.Read)
 	}()
 
 	select {
@@ -95,6 +78,38 @@ func waitForKey(tty *os.File, d time.Duration) keyAction {
 		return result
 	case <-time.After(d):
 		return keyTimeout
+	}
+}
+
+func readMeaningfulKey(read func([]byte) (int, error)) keyAction {
+	buf := make([]byte, 3)
+	for {
+		n, err := read(buf)
+		if err != nil {
+			return keyOther
+		}
+		action := keyActionForInput(buf[:n])
+		if action != keyOther {
+			return action
+		}
+	}
+}
+
+func keyActionForInput(input []byte) keyAction {
+	if len(input) == 0 {
+		return keyOther
+	}
+
+	key := input[0]
+	switch {
+	case key == 13 || key == 10:
+		return keyEnter
+	case key == 3:
+		return keyEscape
+	case len(input) == 1 && key == 27:
+		return keyEscape
+	default:
+		return keyOther
 	}
 }
 

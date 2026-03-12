@@ -39,6 +39,7 @@ const (
 	ActionKill
 	ActionKillAll
 	ActionHelp
+	ActionRetry
 	ActionEscape
 )
 
@@ -146,6 +147,8 @@ func Run(b backend.Backend, version string) (string, error) {
 		case ActionHelp:
 			b = showHelpConfig(tty, b, version)
 			continue
+		case ActionRetry:
+			continue
 		case ActionEscape:
 			return "", nil
 		}
@@ -227,34 +230,16 @@ func showPicker(tty *os.File, b backend.Backend, sessions []backend.Session, cur
 		return Action{}, err
 	}
 
-	key := buf[0]
-
-	if n == 1 && key == 27 {
-		return Action{Type: ActionEscape}, nil
-	}
-	if n >= 1 && (key == 13 || key == 10) {
-		return Action{Type: ActionNew}, nil
-	}
-
-	switch key {
-	case 'z':
-		return Action{Type: ActionZoxide}, nil
-	case 'd':
-		return Action{Type: ActionNewDate}, nil
-	case 'c':
-		return Action{Type: ActionCustom}, nil
-	case 'k':
+	input := buf[:n]
+	if len(input) == 1 && input[0] == 'k' {
 		return enterKillMode(tty, sessions)
-	case 'h':
-		return Action{Type: ActionHelp}, nil
-	default:
-		if idx, ok := IndexForKey(key); ok && idx < len(sessions) {
-			fmt.Fprintf(tty, "\n  %s>%s %s%s%s\n\n", boldGrn, reset, boldWht, sessions[idx].Name, reset)
-			return Action{Type: ActionAttach, Name: sessions[idx].Name}, nil
-		}
 	}
 
-	return Action{Type: ActionEscape}, nil
+	action := pickerActionForInput(input, sessions)
+	if action.Type == ActionAttach {
+		fmt.Fprintf(tty, "\n  %s>%s %s%s%s\n\n", boldGrn, reset, boldWht, action.Name, reset)
+	}
+	return action, nil
 }
 
 func enterKillMode(tty *os.File, sessions []backend.Session) (Action, error) {
@@ -290,6 +275,38 @@ func enterKillMode(tty *os.File, sessions []backend.Session) (Action, error) {
 	}
 
 	return Action{Type: ActionKill}, nil // invalid key, redraw picker
+}
+
+func pickerActionForInput(input []byte, sessions []backend.Session) Action {
+	if len(input) == 0 {
+		return Action{Type: ActionRetry}
+	}
+
+	key := input[0]
+	if key == 3 || (len(input) == 1 && key == 27) {
+		return Action{Type: ActionEscape}
+	}
+	if key == 13 || key == 10 {
+		return Action{Type: ActionNew}
+	}
+
+	switch key {
+	case 'z':
+		return Action{Type: ActionZoxide}
+	case 'd':
+		return Action{Type: ActionNewDate}
+	case 'c':
+		return Action{Type: ActionCustom}
+	case 'h':
+		return Action{Type: ActionHelp}
+	}
+
+	idx, ok := IndexForKey(key)
+	if !ok || idx >= len(sessions) {
+		return Action{Type: ActionRetry}
+	}
+
+	return Action{Type: ActionAttach, Name: sessions[idx].Name}
 }
 
 func confirmAndKill(tty *os.File, b backend.Backend, name string) error {

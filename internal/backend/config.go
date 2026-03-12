@@ -165,29 +165,34 @@ func promptBackend(available []string) (Backend, error) {
 	}
 	defer tty.Close()
 
-	fmt.Fprintf(tty, "\n  Multiple session managers found. Pick one:\n\n")
-	for i, name := range available {
-		fmt.Fprintf(tty, "    %d) %s\n", i+1, name)
-	}
-	fmt.Fprintf(tty, "\n  > ")
+	for {
+		fmt.Fprintf(tty, "\n  Multiple session managers found. Pick one:\n\n")
+		for i, name := range available {
+			fmt.Fprintf(tty, "    %d) %s\n", i+1, name)
+		}
+		fmt.Fprintf(tty, "\n  > ")
 
-	buf := make([]byte, 4)
-	n, err := tty.Read(buf)
-	if err != nil || n == 0 {
-		return nil, fmt.Errorf("no selection made")
-	}
+		buf := make([]byte, 4)
+		n, err := tty.Read(buf)
+		if err != nil || n == 0 {
+			return nil, fmt.Errorf("no selection made")
+		}
 
-	choice := int(buf[0] - '0')
-	if choice < 1 || choice > len(available) {
-		return nil, fmt.Errorf("invalid selection")
-	}
+		selected, ok, cancelled := backendSelectionFromInput(buf[:n], available)
+		if cancelled {
+			return nil, fmt.Errorf("selection cancelled")
+		}
+		if !ok {
+			fmt.Fprintf(tty, "  Invalid selection. Choose 1-%d.\n", len(available))
+			continue
+		}
 
-	selected := available[choice-1]
-	if err := SetBackend(selected); err != nil {
-		// Non-fatal
+		if err := SetBackend(selected); err != nil {
+			// Non-fatal
+		}
+		fmt.Fprintf(tty, "  Using %s\n\n", selected)
+		return newBackend(selected)
 	}
-	fmt.Fprintf(tty, "  Using %s\n\n", selected)
-	return newBackend(selected)
 }
 
 func isValidBackend(name string) bool {
@@ -197,6 +202,27 @@ func isValidBackend(name string) bool {
 		}
 	}
 	return false
+}
+
+func backendSelectionFromInput(input []byte, available []string) (selected string, ok bool, cancelled bool) {
+	if len(input) == 0 {
+		return "", false, false
+	}
+
+	key := input[0]
+	if key == 3 || (len(input) == 1 && key == 27) {
+		return "", false, true
+	}
+	if key < '1' || key > '9' {
+		return "", false, false
+	}
+
+	choice := int(key - '0')
+	if choice < 1 || choice > len(available) {
+		return "", false, false
+	}
+
+	return available[choice-1], true, false
 }
 
 // DetectShell returns the basename of the user's login shell, or "unknown".
