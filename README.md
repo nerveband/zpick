@@ -30,9 +30,9 @@ You can also use the install script:
 curl -fsSL https://raw.githubusercontent.com/nerveband/zpick/main/install.sh | bash
 ```
 
-The installer automatically adds a shell hook to your config (`.zshrc`, `.bashrc`, or fish `conf.d/`). The hook is required — it lets `zp` attach sessions in your current shell, enables autorun, and enables in-session switching. On macOS it also creates a `/usr/local/bin/zp` symlink for system-wide PATH access.
+The installer automatically adds a shell hook to your config (`.zshrc`, `.bashrc`, or fish `conf.d/00-zp.fish`). The hook is required — it lets `zp` attach sessions in your current shell, autostarts the picker in fresh interactive TTY shells before slower prompt/plugin setup, enables autorun, and enables in-session switching. It skips non-interactive shells and command-mode SSH/scp runs. On macOS it also creates a `/usr/local/bin/zp` symlink for system-wide PATH access.
 
-`zp upgrade` keeps the hook up to date automatically.
+`zp upgrade` updates the binary, then checks whether the managed hook block changed in this release and offers to refresh it.
 
 To remove the hook:
 
@@ -148,14 +148,49 @@ zp version        Print version
 The TUI renders to `/dev/tty` so it works even when stdout is piped. Only the final shell command goes to stdout, where it gets eval'd by the shell hook.
 
 ```bash
-# The hook adds this to your shell config:
-zp() {
-  if [[ $# -eq 0 ]]; then
-    eval "$(command zp)"
+# The zsh/bash hook adds this near the top of your shell config:
+_ZPICK_BIN=
+if command -v zp >/dev/null 2>&1; then
+  _ZPICK_BIN=zp
+elif [[ -x "$HOME/.local/bin/zp" ]]; then
+  _ZPICK_BIN="$HOME/.local/bin/zp"
+elif [[ -x /usr/local/bin/zp ]]; then
+  _ZPICK_BIN=/usr/local/bin/zp
+fi
+
+_zpick_exec() {
+  if command -v zp >/dev/null 2>&1; then
+    command zp "$@"
     return
   fi
-  command zp "$@"
+  if [[ -n "${_ZPICK_BIN:-}" ]]; then
+    "$_ZPICK_BIN" "$@"
+    return
+  fi
+  return 127
 }
+
+_zpick_eval() {
+  local _zpick_out
+  _zpick_out="$(_zpick_exec "$@")" || return $?
+  eval "$_zpick_out"
+}
+
+zp() {
+  if [[ $# -eq 0 ]]; then
+    _zpick_eval
+    return
+  fi
+  _zpick_exec "$@"
+}
+
+if [[ -n "$ZPICK_AUTORUN" ]]; then
+  _zpick_exec autorun
+elif [[ -f "$HOME/.cache/zpick/switch-target" ]]; then
+  _zpick_eval resume
+elif [[ "$-" == *i* ]] && _zpick_exec should-autostart >/dev/null 2>&1; then
+  _zpick_eval
+fi
 ```
 
 Selecting a session outputs something like `exec tmux new-session -A -s myproject`, which the eval picks up. Pressing Escape outputs nothing, so your shell just continues.

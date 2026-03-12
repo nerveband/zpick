@@ -27,47 +27,65 @@ func sessionEnvCheck() string {
 	return strings.Join(parts, " && ")
 }
 
-// GenerateHookBlock builds the shell hook block from the guard config.
-func GenerateHookBlock(apps []string) string {
+func generatePosixHookBlock(apps []string) string {
 	var b strings.Builder
 	b.WriteString(blockStart)
 	b.WriteByte('\n')
 
+	// Resolve the binary early so source-time autostart works before PATH setup.
+	b.WriteString("_ZPICK_BIN=\n")
+	b.WriteString("if command -v zp >/dev/null 2>&1; then\n")
+	b.WriteString("  _ZPICK_BIN=zp\n")
+	b.WriteString("elif [[ -x \"$HOME/.local/bin/zp\" ]]; then\n")
+	b.WriteString("  _ZPICK_BIN=\"$HOME/.local/bin/zp\"\n")
+	b.WriteString("elif [[ -x /usr/local/bin/zp ]]; then\n")
+	b.WriteString("  _ZPICK_BIN=/usr/local/bin/zp\n")
+	b.WriteString("fi\n")
+
+	b.WriteString("_zpick_exec() {\n")
+	b.WriteString("  if command -v zp >/dev/null 2>&1; then\n")
+	b.WriteString("    command zp \"$@\"\n")
+	b.WriteString("    return\n")
+	b.WriteString("  fi\n")
+	b.WriteString("  if [[ -n \"${_ZPICK_BIN:-}\" ]]; then\n")
+	b.WriteString("    \"$_ZPICK_BIN\" \"$@\"\n")
+	b.WriteString("    return\n")
+	b.WriteString("  fi\n")
+	b.WriteString("  return 127\n")
+	b.WriteString("}\n")
+
+	b.WriteString("_zpick_eval() {\n")
+	b.WriteString("  local _zpick_out\n")
+	b.WriteString("  _zpick_out=\"$(_zpick_exec \"$@\")\" || return $?\n")
+	b.WriteString("  eval \"$_zpick_out\"\n")
+	b.WriteString("}\n")
+
 	// Picker launcher: eval the command zp outputs
 	b.WriteString("zp() {\n")
 	b.WriteString("  if [[ $# -eq 0 ]]; then\n")
-	b.WriteString("    eval \"$(command zp)\"\n")
+	b.WriteString("    _zpick_eval\n")
 	b.WriteString("    return\n")
 	b.WriteString("  fi\n")
-	b.WriteString("  command zp \"$@\"\n")
+	b.WriteString("  _zpick_exec \"$@\"\n")
 	b.WriteString("}\n")
 
-	// Autorun: defer to precmd so it runs after shell init (avoids p10k instant prompt conflict)
+	// Source-time autorun/resume/autostart so fresh shells drop into zp before
+	// the prompt/plugin stack initializes.
 	b.WriteString("if [[ -n \"$ZPICK_AUTORUN\" ]]; then\n")
-	b.WriteString("  _zpick_autorun() {\n")
-	b.WriteString("    precmd_functions=(${precmd_functions:#_zpick_autorun})\n")
-	b.WriteString("    command zp autorun\n")
-	b.WriteString("    unset ZPICK_AUTORUN\n")
-	b.WriteString("  }\n")
-	b.WriteString("  precmd_functions+=(_zpick_autorun)\n")
-	b.WriteString("fi\n")
-
-	// Switch-target: resume after in-session detach
-	b.WriteString("if [[ -f \"$HOME/.cache/zpick/switch-target\" ]]; then\n")
-	b.WriteString("  _zpick_switch() {\n")
-	b.WriteString("    precmd_functions=(${precmd_functions:#_zpick_switch})\n")
-	b.WriteString("    eval \"$(command zp resume)\"\n")
-	b.WriteString("  }\n")
-	b.WriteString("  precmd_functions+=(_zpick_switch)\n")
+	b.WriteString("  _zpick_exec autorun\n")
+	b.WriteString("elif [[ -f \"$HOME/.cache/zpick/switch-target\" ]]; then\n")
+	b.WriteString("  _zpick_eval resume\n")
+	b.WriteString("elif [[ \"$-\" == *i* ]] && _zpick_exec should-autostart >/dev/null 2>&1; then\n")
+	b.WriteString("  _zpick_eval\n")
 	b.WriteString("fi\n")
 
 	// Guard function + per-app wrappers (optional — only if apps configured)
 	if len(apps) > 0 {
 		envCheck := sessionEnvCheck()
 		b.WriteString("_zpick_guard() {\n")
-		fmt.Fprintf(&b, "  if [[ %s ]] && command -v zp &>/dev/null; then\n", envCheck)
+		fmt.Fprintf(&b, "  if [[ %s ]] && _zpick_exec version >/dev/null 2>&1; then\n", envCheck)
 		b.WriteString("    local _r\n")
-		b.WriteString("    _r=$(command zp guard -- \"$@\")\n")
+		b.WriteString("    _r=\"$(_zpick_exec guard -- \"$@\")\"\n")
 		b.WriteString("    if [[ -n \"$_r\" ]]; then eval \"$_r\"; return; fi\n")
 		b.WriteString("  fi\n")
 		b.WriteString("  command \"$@\"\n")
@@ -86,6 +104,16 @@ func GenerateHookBlock(apps []string) string {
 	return b.String()
 }
 
+// GenerateHookBlock builds the zsh hook block from the guard config.
+func GenerateHookBlock(apps []string) string {
+	return generatePosixHookBlock(apps)
+}
+
+// GenerateBashHookBlock builds the bash hook block from the guard config.
+func GenerateBashHookBlock(apps []string) string {
+	return generatePosixHookBlock(apps)
+}
+
 // Install adds the zpick shell hook to the appropriate shell config file.
 // When withGuard is true, guard wrappers for configured apps are included.
 func Install(withGuard bool) error {
@@ -93,9 +121,9 @@ func Install(withGuard bool) error {
 	var err error
 	switch shell {
 	case "zsh":
-		err = installShell(zshrcPath(), withGuard)
+		err = installShell(zshrcPath(), withGuard, "zsh")
 	case "bash":
-		err = installShell(bashrcPath(), withGuard)
+		err = installShell(bashrcPath(), withGuard, "bash")
 	case "fish":
 		err = installFish(withGuard)
 	default:
@@ -130,7 +158,7 @@ func Remove() error {
 
 // installShell installs the hook block into a shell config file.
 // Guard wrappers are only included when withGuard is true.
-func installShell(path string, withGuard bool) error {
+func installShell(path string, withGuard bool, shell string) error {
 	var apps []string
 	if withGuard {
 		apps, _ = guard.ReadConfig()
@@ -140,6 +168,9 @@ func installShell(path string, withGuard bool) error {
 	content := string(data)
 
 	block := GenerateHookBlock(apps)
+	if shell == "bash" {
+		block = GenerateBashHookBlock(apps)
+	}
 	content = removeBlock(content)
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
@@ -148,12 +179,15 @@ func installShell(path string, withGuard bool) error {
 	}
 	defer f.Close()
 
-	trimmed := strings.TrimRight(content, "\n")
-	if trimmed != "" {
-		fmt.Fprint(f, trimmed)
-		fmt.Fprint(f, "\n\n")
-	}
+	trimmed := strings.TrimLeft(content, "\n")
 	fmt.Fprintf(f, "%s\n", block)
+	if strings.TrimSpace(trimmed) != "" {
+		fmt.Fprint(f, "\n")
+		fmt.Fprint(f, trimmed)
+		if !strings.HasSuffix(trimmed, "\n") {
+			fmt.Fprint(f, "\n")
+		}
+	}
 
 	printInstallSummary(path, apps)
 	return nil
@@ -393,7 +427,7 @@ func hookConfigPath() (string, bool) {
 	case "bash":
 		return bashrcPath(), true
 	case "fish":
-		return fishConfigPath(), true
+		return currentFishConfigPath(), true
 	default:
 		return "", false
 	}
@@ -413,10 +447,14 @@ func extractBlock(content string) (string, bool) {
 }
 
 func generateHookBlockForShell(apps []string) string {
-	if backend.DetectShell() == "fish" {
+	switch backend.DetectShell() {
+	case "fish":
 		return GenerateFishHookBlock(apps)
+	case "bash":
+		return GenerateBashHookBlock(apps)
+	default:
+		return GenerateHookBlock(apps)
 	}
-	return GenerateHookBlock(apps)
 }
 
 func printHookUpdateCommand(withGuard bool) error {

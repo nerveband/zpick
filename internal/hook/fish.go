@@ -10,14 +10,33 @@ import (
 	"github.com/nerveband/zpick/internal/guard"
 )
 
-// fishConfigPath returns the path to the fish hook file.
-// Uses conf.d/ for cleaner fish config, respects XDG_CONFIG_HOME.
+// fishConfigPath returns the path to the managed fish hook file.
+// Uses conf.d/ for cleaner fish config, respects XDG_CONFIG_HOME, and prefixes
+// the filename so fish loads zpick before slower prompt/plugin snippets.
 func fishConfigPath() string {
+	if d := os.Getenv("XDG_CONFIG_HOME"); d != "" {
+		return filepath.Join(d, "fish", "conf.d", "00-zp.fish")
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "fish", "conf.d", "00-zp.fish")
+}
+
+func legacyFishConfigPath() string {
 	if d := os.Getenv("XDG_CONFIG_HOME"); d != "" {
 		return filepath.Join(d, "fish", "conf.d", "zp.fish")
 	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".config", "fish", "conf.d", "zp.fish")
+}
+
+func currentFishConfigPath() string {
+	if _, err := os.Stat(fishConfigPath()); err == nil {
+		return fishConfigPath()
+	}
+	if _, err := os.Stat(legacyFishConfigPath()); err == nil {
+		return legacyFishConfigPath()
+	}
+	return fishConfigPath()
 }
 
 // fishSessionEnvCheck builds the fish condition checking all session env vars.
@@ -37,33 +56,59 @@ func GenerateFishHookBlock(apps []string) string {
 	b.WriteString(blockStart)
 	b.WriteByte('\n')
 
+	b.WriteString("set -g _ZPICK_BIN\n")
+	b.WriteString("if command -sq zp\n")
+	b.WriteString("  set _ZPICK_BIN zp\n")
+	b.WriteString("else if test -x \"$HOME/.local/bin/zp\"\n")
+	b.WriteString("  set _ZPICK_BIN \"$HOME/.local/bin/zp\"\n")
+	b.WriteString("else if test -x /usr/local/bin/zp\n")
+	b.WriteString("  set _ZPICK_BIN /usr/local/bin/zp\n")
+	b.WriteString("end\n")
+
+	b.WriteString("function _zpick_exec\n")
+	b.WriteString("  if command -sq zp\n")
+	b.WriteString("    command zp $argv\n")
+	b.WriteString("    return\n")
+	b.WriteString("  end\n")
+	b.WriteString("  if test -n \"$_ZPICK_BIN\"\n")
+	b.WriteString("    $_ZPICK_BIN $argv\n")
+	b.WriteString("    return\n")
+	b.WriteString("  end\n")
+	b.WriteString("  return 127\n")
+	b.WriteString("end\n")
+
+	b.WriteString("function _zpick_eval\n")
+	b.WriteString("  set -l _zpick_out (_zpick_exec $argv)\n")
+	b.WriteString("  or return $status\n")
+	b.WriteString("  eval $_zpick_out\n")
+	b.WriteString("end\n")
+
 	// Picker function: eval the command zp outputs
 	b.WriteString("function zp\n")
 	b.WriteString("  if test (count $argv) -eq 0\n")
-	b.WriteString("    eval (command zp)\n")
+	b.WriteString("    _zpick_eval\n")
 	b.WriteString("    return\n")
 	b.WriteString("  end\n")
-	b.WriteString("  command zp $argv\n")
+	b.WriteString("  _zpick_exec $argv\n")
 	b.WriteString("end\n")
 
-	// Autorun
-	b.WriteString("# Auto-run: launch saved command when entering a new session\n")
+	// Source-time autorun/resume/autostart so fresh shells hit zp before fish
+	// prompt/plugins load.
 	b.WriteString("if test -n \"$ZPICK_AUTORUN\"\n")
-	b.WriteString("  command zp autorun\n")
-	b.WriteString("  set -e ZPICK_AUTORUN\n")
-	b.WriteString("end\n")
-
-	// Switch-target: resume after in-session detach
-	b.WriteString("if test -f \"$HOME/.cache/zpick/switch-target\"\n")
-	b.WriteString("  eval (command zp resume)\n")
+	b.WriteString("  _zpick_exec autorun\n")
+	b.WriteString("else if test -f \"$HOME/.cache/zpick/switch-target\"\n")
+	b.WriteString("  _zpick_eval resume\n")
+	b.WriteString("else if status is-interactive\n")
+	b.WriteString("  _zpick_exec should-autostart >/dev/null 2>&1\n")
+	b.WriteString("  and _zpick_eval\n")
 	b.WriteString("end\n")
 
 	// Guard function + per-app wrappers (optional — only if apps configured)
 	if len(apps) > 0 {
 		envCheck := fishSessionEnvCheck()
 		b.WriteString("function _zpick_guard\n")
-		fmt.Fprintf(&b, "  if %s; and command -v zp &>/dev/null\n", envCheck)
-		b.WriteString("    set -l _r (command zp guard -- $argv)\n")
+		fmt.Fprintf(&b, "  if %s; and _zpick_exec version >/dev/null 2>&1\n", envCheck)
+		b.WriteString("    set -l _r (_zpick_exec guard -- $argv)\n")
 		b.WriteString("    if test -n \"$_r\"\n")
 		b.WriteString("      eval $_r\n")
 		b.WriteString("      return\n")
@@ -106,22 +151,31 @@ func installFish(withGuard bool) error {
 		return fmt.Errorf("cannot write %s: %w", path, err)
 	}
 
+	legacyPath := legacyFishConfigPath()
+	if legacyPath != path {
+		_ = os.Remove(legacyPath)
+	}
+
 	printInstallSummary(path, apps)
 	return nil
 }
 
 // removeFish removes the fish hook file.
 func removeFish() error {
-	path := fishConfigPath()
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		fmt.Printf("  fish hook not found at %s\n", path)
-		return nil
+	paths := []string{fishConfigPath(), legacyFishConfigPath()}
+	removed := false
+	for _, path := range paths {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			continue
+		}
+		if err := os.Remove(path); err != nil {
+			return fmt.Errorf("cannot remove %s: %w", path, err)
+		}
+		fmt.Printf("  removed hook from %s\n", path)
+		removed = true
 	}
-
-	if err := os.Remove(path); err != nil {
-		return fmt.Errorf("cannot remove %s: %w", path, err)
+	if !removed {
+		fmt.Printf("  fish hook not found at %s\n", fishConfigPath())
 	}
-
-	fmt.Printf("  removed fish hook from %s\n", path)
 	return nil
 }

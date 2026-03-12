@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.0.8
+
+- **Make hook autostart actually happen first** — zsh, bash, and fish now launch `zp` during shell startup instead of waiting for later prompt hooks, so new shells drop into the picker before slower prompt/plugin setup.
+- **Harden session detection for fresh shells** — the new `zp should-autostart` check verifies real TTY state and ignores stale inherited session env vars unless there is a live backend ancestor process, avoiding false “already in a session” skips.
+- **Keep fish aligned with bash/zsh** — fish now installs to `conf.d/00-zp.fish`, runs the same source-time autostart/resume flow, and removes the older `zp.fish` path during reinstall.
+- **Refresh hook docs and upgrade behavior** — the README and managed hook update flow now describe and surface the new hook template more clearly.
+
 ## v3.0.7
 
 - **Handle hook-template changes during `zp upgrade`** — after updating the binary, `zp upgrade` now invokes the new binary to compare the managed shell hook block against the current template.

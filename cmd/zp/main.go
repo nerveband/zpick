@@ -75,6 +75,16 @@ func main() {
 			fmt.Fprintf(os.Stderr, "zp: %v\n", err)
 			os.Exit(1)
 		}
+	case "in-session":
+		if backend.InAnySession() {
+			os.Exit(0)
+		}
+		os.Exit(1)
+	case "should-autostart":
+		if backend.ShouldAutostart() {
+			os.Exit(0)
+		}
+		os.Exit(1)
 	case "install-hook":
 		if err := runInstallHook(); err != nil {
 			fmt.Fprintf(os.Stderr, "zp: %v\n", err)
@@ -144,7 +154,7 @@ func shouldCheckUpdates(args []string) bool {
 		return false
 	}
 	switch args[0] {
-	case "version", "upgrade", "post-upgrade-hook", "--help", "-h", "help", "guard", "autorun", "resume",
+	case "version", "upgrade", "post-upgrade-hook", "in-session", "should-autostart", "--help", "-h", "help", "guard", "autorun", "resume",
 		"install-guard", "remove-hook", "remove-guard":
 		return false
 	}

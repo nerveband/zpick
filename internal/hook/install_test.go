@@ -22,8 +22,23 @@ func TestGenerateHookBlock(t *testing.T) {
 	if !strings.Contains(block, "ZPICK_AUTORUN") {
 		t.Error("block should contain autorun check")
 	}
+	if !strings.Contains(block, "_ZPICK_BIN") {
+		t.Error("block should resolve the binary early")
+	}
+	if !strings.Contains(block, "_zpick_exec") || !strings.Contains(block, "_zpick_eval") {
+		t.Error("block should contain execution helpers")
+	}
+	if !strings.Contains(block, "should-autostart") {
+		t.Error("block should use zp should-autostart to detect interactive terminal startups")
+	}
+	if !strings.Contains(block, `[[ "$-" == *i* ]]`) {
+		t.Error("block should only autostart in interactive shells")
+	}
 	if !strings.Contains(block, `command zp "$@"`) {
-		t.Error("block should pass arguments through to the real zp binary")
+		t.Error("block should pass arguments through to the real zp binary when it is on PATH")
+	}
+	if !strings.Contains(block, `"$_ZPICK_BIN" "$@"`) {
+		t.Error("block should fall back to the resolved binary path")
 	}
 	if !strings.Contains(block, `claude() { _zpick_guard claude "$@"; }`) {
 		t.Error("block should contain claude function")
@@ -171,6 +186,30 @@ func TestRemoveFromFileNotFound(t *testing.T) {
 	// Should print "not found" message but not error
 }
 
+func TestInstallShellPrependsManagedBlock(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "zshrc")
+	if err := os.WriteFile(path, []byte("# existing\nexport FOO=bar\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := installShell(path, false, "zsh"); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+	if !strings.HasPrefix(content, blockStart) {
+		t.Fatal("expected managed block to be prepended")
+	}
+	if !strings.Contains(content, "export FOO=bar") {
+		t.Fatal("expected original shell config to remain after the managed block")
+	}
+}
+
 func TestGenerateFishHookBlock(t *testing.T) {
 	block := GenerateFishHookBlock([]string{"claude", "codex"})
 
@@ -183,11 +222,17 @@ func TestGenerateFishHookBlock(t *testing.T) {
 	if !strings.Contains(block, "function _zpick_guard") {
 		t.Error("fish block should contain guard function")
 	}
-	if !strings.Contains(block, "set -e ZPICK_AUTORUN") {
-		t.Error("fish block should use set -e to unset ZPICK_AUTORUN")
+	if !strings.Contains(block, "set -g _ZPICK_BIN") {
+		t.Error("fish block should resolve the binary early")
 	}
-	if !strings.Contains(block, "command zp $argv") {
-		t.Error("fish block should pass arguments through to the real zp binary")
+	if !strings.Contains(block, "status is-interactive") {
+		t.Error("fish block should require an interactive shell before autostart")
+	}
+	if !strings.Contains(block, "should-autostart") {
+		t.Error("fish block should use zp should-autostart to detect active sessions")
+	}
+	if !strings.Contains(block, "_zpick_exec $argv") {
+		t.Error("fish block should pass arguments through the helper")
 	}
 	if !strings.Contains(block, `test -z "$ZMX_SESSION"`) {
 		t.Error("fish block should check ZMX_SESSION")
@@ -211,7 +256,7 @@ func TestFishConfigPath(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
 	got := fishConfigPath()
-	want := filepath.Join(dir, "fish", "conf.d", "zp.fish")
+	want := filepath.Join(dir, "fish", "conf.d", "00-zp.fish")
 	if got != want {
 		t.Errorf("fishConfigPath() = %q, want %q", got, want)
 	}
@@ -244,6 +289,17 @@ func TestInstallAndRemoveFish(t *testing.T) {
 		t.Error("fish hook should contain claude function")
 	}
 
+	legacyPath := legacyFishConfigPath()
+	if err := os.WriteFile(legacyPath, []byte("# stale\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := installFish(true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
+		t.Error("legacy fish hook path should be removed during install")
+	}
+
 	// Remove
 	if err := removeFish(); err != nil {
 		t.Fatal(err)
@@ -260,11 +316,8 @@ func TestGenerateHookBlockContainsSwitchTarget(t *testing.T) {
 	if !strings.Contains(block, "switch-target") {
 		t.Error("block should contain switch-target check")
 	}
-	if !strings.Contains(block, "_zpick_switch") {
-		t.Error("block should contain _zpick_switch function")
-	}
-	if !strings.Contains(block, "zp resume") {
-		t.Error("block should reference zp resume command")
+	if !strings.Contains(block, "_zpick_eval resume") {
+		t.Error("block should resume via the eval helper")
 	}
 }
 
@@ -280,17 +333,34 @@ func TestGenerateHookBlockWithoutGuard(t *testing.T) {
 	if !strings.Contains(block, "if [[ $# -eq 0 ]]; then") {
 		t.Error("block should contain zp launcher function")
 	}
-	if !strings.Contains(block, `command zp "$@"`) {
-		t.Error("block should pass arguments through to the real zp binary")
+	if !strings.Contains(block, `_zpick_exec "$@"`) {
+		t.Error("block should pass arguments through the helper")
 	}
 	if !strings.Contains(block, "ZPICK_AUTORUN") {
 		t.Error("block should contain autorun check")
+	}
+	if !strings.Contains(block, "should-autostart") {
+		t.Error("block should use zp should-autostart")
 	}
 	if !strings.Contains(block, "switch-target") {
 		t.Error("block should contain switch-target check")
 	}
 	if strings.Contains(block, "_zpick_guard") {
 		t.Error("block without guard should not contain guard function")
+	}
+}
+
+func TestGenerateBashHookBlock(t *testing.T) {
+	block := GenerateBashHookBlock(nil)
+
+	if !strings.Contains(block, blockStart) || !strings.Contains(block, blockEnd) {
+		t.Error("bash block should include hook markers")
+	}
+	if !strings.Contains(block, `[[ "$-" == *i* ]]`) {
+		t.Error("bash block should only autostart in interactive shells")
+	}
+	if !strings.Contains(block, "should-autostart") {
+		t.Error("bash block should use zp should-autostart")
 	}
 }
 
@@ -309,11 +379,14 @@ func TestGenerateFishHookBlockWithoutGuard(t *testing.T) {
 	if !strings.Contains(block, "if test (count $argv) -eq 0") {
 		t.Error("fish block should only eval bare zp invocations")
 	}
-	if !strings.Contains(block, "command zp $argv") {
-		t.Error("fish block should pass arguments through to the real zp binary")
+	if !strings.Contains(block, "_zpick_exec $argv") {
+		t.Error("fish block should pass arguments through the helper")
 	}
 	if !strings.Contains(block, "ZPICK_AUTORUN") {
 		t.Error("fish block should contain autorun check")
+	}
+	if !strings.Contains(block, "should-autostart") {
+		t.Error("fish block should use zp should-autostart")
 	}
 	if strings.Contains(block, "_zpick_guard") {
 		t.Error("fish block without guard should not contain guard function")
@@ -350,7 +423,7 @@ func TestGenerateFishHookBlockContainsSwitchTarget(t *testing.T) {
 	if !strings.Contains(block, "switch-target") {
 		t.Error("fish block should contain switch-target check")
 	}
-	if !strings.Contains(block, "zp resume") {
-		t.Error("fish block should reference zp resume command")
+	if !strings.Contains(block, "_zpick_eval resume") {
+		t.Error("fish block should resume via the eval helper")
 	}
 }
